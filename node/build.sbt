@@ -18,7 +18,6 @@ coverageExcludedPackages := ""
 
 inConfig(Compile)(
   Seq(
-    sourceGenerators += versionSource,
     PB.unpackDependencies := {
       val deps = PB.unpackDependencies.value
       val waves = PB.externalIncludePath.value / "waves"
