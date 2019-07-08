@@ -6,31 +6,6 @@ import sbtassembly.MergeStrategy
 
 enablePlugins(RunApplicationSettings, JavaServerAppPackaging, UniversalDeployPlugin, JDebPackaging, SystemdPlugin, GitVersioning)
 
-val versionSource = Def.task {
-  // WARNING!!!
-  // Please, update the fallback version every major and minor releases.
-  // This version is used then building from sources without Git repository
-  // In case of not updating the version nodes build from headless sources will fail to connect to newer versions
-  val FallbackVersion = (1, 0, 0)
-
-  val versionFile      = sourceManaged.value / "com" / "wavesplatform" / "Version.scala"
-  val versionExtractor = """(\d+)\.(\d+)\.(\d+).*""".r
-  val (major, minor, patch) = version.value match {
-    case versionExtractor(ma, mi, pa) => (ma.toInt, mi.toInt, pa.toInt)
-    case _                            => FallbackVersion
-  }
-  IO.write(
-    versionFile,
-    s"""package com.wavesplatform
-       |
-       |object Version {
-       |  val VersionString = "${version.value}"
-       |  val VersionTuple = ($major, $minor, $patch)
-       |}
-       |""".stripMargin
-  )
-  Seq(versionFile)
-}
 
 resolvers ++= Seq(
   Resolver.bintrayRepo("ethereum", "maven"),
