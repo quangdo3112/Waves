@@ -24,7 +24,7 @@ object Dependencies {
   private val kamonCore          = kamonModule("core", "1.1.5")
   private val machinist          = "org.typelevel" %% "machinist" % "0.6.6"
   private val logback            = "ch.qos.logback" % "logback-classic" % "1.2.3"
-  val janino             = "org.codehaus.janino" % "janino" % "3.0.12"
+  val janino                     = "org.codehaus.janino" % "janino" % "3.0.12"
 
   private val catsEffect = catsModule("effect", "1.2.0")
   private val catsCore   = catsModule("core")
@@ -98,7 +98,7 @@ object Dependencies {
       machinist.exclude("org.scala-js", "scalajs-library_2.12"),
       catsEffect.value.exclude("org.typelevel", "cats-core_sjs0.6_2.12"),
       ("org.typelevel" %% "cats-mtl-core" % "0.4.0").exclude("org.scalacheck", "scalacheck_2.12"),
-      "ch.obermuhlner" % "big-math" % "2.1.0",
+      "ch.obermuhlner"       % "big-math" % "2.1.0",
       "org.scorexfoundation" %% "scrypto" % "2.0.4",
       ("org.bykn" %% "fastparse-cats-core" % "0.1.0")
         .exclude("org.scalatest", "scalatest_2.12")
@@ -171,22 +171,22 @@ object Dependencies {
   ).map(_ % Test) ++ test ++ quill
 
   private[this] val protoSchemesLib =
-    "com.wavesplatform" % "waves-node-proto" % "1.0.0-SNAPSHOT"
-  
+    "com.wavesplatform" % "waves-node-proto" % "1.0.0-SNAPSHOT" classifier ("proto")
+
   lazy val protobuf = Def.setting {
     val version = scalapb.compiler.Version.scalapbVersion
     Seq(
       // "com.google.protobuf" % "protobuf-java" % "3.4.0",
       "com.thesamet.scalapb" %%% "scalapb-runtime" % version,
       "com.thesamet.scalapb" %%% "scalapb-runtime" % version % "protobuf",
-      "com.thesamet.scalapb" %% "scalapb-json4s"   % "0.7.0",
-      protoSchemesLib % "protobuf"
+      "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0",
+      protoSchemesLib        % "protobuf"
     )
   }
 
   lazy val grpc: Seq[ModuleID] = Seq(
-    "io.grpc"              % "grpc-netty"            % scalapb.compiler.Version.grpcJavaVersion,
+    "io.grpc"              % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
     "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
-    protoSchemesLib % "protobuf"
+    protoSchemesLib        % "protobuf"
   )
 }
