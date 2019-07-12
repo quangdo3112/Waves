@@ -170,8 +170,8 @@ object Dependencies {
     "com.github.dnvriend" %% "akka-persistence-inmemory" % "2.5.15.1"
   ).map(_ % Test) ++ test ++ quill
 
-  private[this] val protoSchemesLib =
-    "com.wavesplatform" % "waves-node-proto" % "1.0.0-SNAPSHOT" classifier ("proto")
+  private[this] val protoSchemasLib =
+    "com.wavesplatform" % "protobuf-schemas" % "1.0.0-SNAPSHOT" classifier "proto"
 
   lazy val protobuf = Def.setting {
     val version = scalapb.compiler.Version.scalapbVersion
@@ -180,13 +180,13 @@ object Dependencies {
       "com.thesamet.scalapb" %%% "scalapb-runtime" % version,
       "com.thesamet.scalapb" %%% "scalapb-runtime" % version % "protobuf",
       "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0",
-      protoSchemesLib        % "protobuf"
+      protoSchemasLib        % "protobuf"
     )
   }
 
   lazy val grpc: Seq[ModuleID] = Seq(
     "io.grpc"              % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
     "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
-    protoSchemesLib        % "protobuf"
+    protoSchemasLib        % "protobuf"
   )
 }
