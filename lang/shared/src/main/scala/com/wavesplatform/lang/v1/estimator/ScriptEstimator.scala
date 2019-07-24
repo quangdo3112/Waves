@@ -23,7 +23,7 @@ object ScriptEstimator {
   private def evalFuncBlock(func: FUNC, inner: EXPR): EvalM[Long] =
     local {
       for {
-        ctx <- get[EstimatorContext, ExecutionError]
+        ctx <- get
         _   <- modify[EstimatorContext, ExecutionError]((userFuncs ~ lets).modify(_)(funcCtx(_, func, ctx)))
         r   <- evalExpr(inner)
       } yield r + 5
@@ -43,12 +43,11 @@ object ScriptEstimator {
 
   private def evalRef(key: String): EvalM[Long] =
     for {
-      ctx <- get[EstimatorContext, ExecutionError]
+      ctx <- get
       r <- lets.get(ctx).get(key) match {
-        case Some((false, lzy)) =>
-          modify[EstimatorContext, ExecutionError](lets.modify(_)(_.updated(key, (true, lzy)))).flatMap(_ => lzy)
-        case Some((true,  _)) => const(0)
-        case None      => raiseError[EstimatorContext, ExecutionError, Long](s"A definition of '$key' not found")
+        case Some((false, lzy)) => modify[EstimatorContext, ExecutionError](lets.modify(_)(_.updated(key, (true, lzy)))).flatMap(_ => lzy)
+        case Some((true,  _))   => const(0)
+        case None               => raiseError[EstimatorContext, ExecutionError, Long](s"A definition of '$key' not found")
       }
     } yield r + 2
 
@@ -61,22 +60,30 @@ object ScriptEstimator {
 
   private def evalGetter(expr: EXPR, field: String): EvalM[Long] = evalExpr(expr).map(_ + 2)
 
-  private def evalFunctionCall(header: FunctionHeader, args: List[EXPR]): EvalM[Long] =
+  private def evalFuncCall(header: FunctionHeader, args: List[EXPR]): EvalM[Long] =
     for {
-      ctx <- get[EstimatorContext, ExecutionError]
-      argsComplexity <- args.traverse[EvalM, Long](evalExpr).map(_.sum)
+      ctx <- get
+      argsComplexity <- args.traverse(evalExpr).map(_.sum)
       bodyComplexity <- predefFuncs.get(ctx).get(header).map(const)
-        .orElse(userFuncs.get(ctx).get(header).map { case (f, localCtx) =>
-            modify[EstimatorContext, ExecutionError](userFuncs.set(_)(localCtx.userFuncs))
-                .flatMap(_ => evalExpr(f.body).map(_ + f.args.size * 5))
-                .flatMap(r => modify[EstimatorContext, ExecutionError](userFuncs.set(_)(ctx.userFuncs)).map(_ => r))
-           })
-        .getOrElse(raiseError[EstimatorContext, ExecutionError, Long](s"function '$header' not found"))
+        .orElse(userFuncs.get(ctx).get(header).map(evalLocalFuncCall(_, ctx)))
+        .getOrElse(raiseError(s"function '$header' not found"))
     } yield bodyComplexity + argsComplexity
 
-  private def const(l: Long): EvalM[Long] = implicitly[Monad[EvalM]].pure(l)
+  private def evalLocalFuncCall(
+      localFuncCtx: (FUNC, EstimatorContext),
+      baseCtx: EstimatorContext
+  ) = {
+    val (f, localCtx) = localFuncCtx
+    for {
+      _ <- modify[EstimatorContext, ExecutionError](userFuncs.set(_)(localCtx.userFuncs))
+      r <- evalExpr(f.body).map(_ + f.args.size * 5)
+      _ <- modify[EstimatorContext, ExecutionError](userFuncs.set(_)(baseCtx.userFuncs))
+    } yield r
+  }
 
-  def evalExpr(t: EXPR): EvalM[Long] =
+  private def const(l: Long): EvalM[Long] = Monad[EvalM].pure(l)
+
+  private def evalExpr(t: EXPR): EvalM[Long] =
     t match {
       case LET_BLOCK(let, inner)       => evalLetBlock(let, inner)
       case BLOCK(let: LET, inner)      => evalLetBlock(let, inner)
@@ -85,7 +92,7 @@ object ScriptEstimator {
       case _: EVALUATED                => const(1)
       case IF(cond, t1, t2)            => evalIF(cond, t1, t2)
       case GETTER(expr, field)         => evalGetter(expr, field)
-      case FUNCTION_CALL(header, args) => evalFunctionCall(header, args)
+      case FUNCTION_CALL(header, args) => evalFuncCall(header, args)
     }
 
   def apply(
