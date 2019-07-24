@@ -8,10 +8,11 @@ import com.wavesplatform.lang.directives.values._
 import com.wavesplatform.lang.{Global, utils}
 import com.wavesplatform.lang.v1.FunctionHeader.User
 import com.wavesplatform.lang.v1.compiler.Terms._
+import com.wavesplatform.lang.v1.estimator.ScriptEstimator
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.waves._
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.{CryptoContext, PureContext}
 import com.wavesplatform.lang.v1.testing.TypedScriptGen
-import com.wavesplatform.lang.v1.{CTX, FunctionHeader, ScriptEstimator}
+import com.wavesplatform.lang.v1.{CTX, FunctionHeader}
 import com.wavesplatform.transaction.smart.WavesEnvironment
 import com.wavesplatform.utils.EmptyBlockchain
 import monix.eval.Coeval

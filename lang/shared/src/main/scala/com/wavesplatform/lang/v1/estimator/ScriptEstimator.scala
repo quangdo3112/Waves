@@ -1,0 +1,100 @@
+package com.wavesplatform.lang.v1.estimator
+
+import cats.Monad
+import cats.implicits._
+import com.wavesplatform.lang.v1.FunctionHeader
+import com.wavesplatform.lang.v1.compiler.Terms._
+import EstimatorContext.Lenses._
+import com.wavesplatform.lang.v1.task.imports._
+import com.wavesplatform.lang.ExecutionError
+import com.wavesplatform.lang.v1.estimator.EstimatorContext.EvalM
+import monix.eval.Coeval
+
+object ScriptEstimator {
+  private def evalLetBlock(let: LET, inner: EXPR): EvalM[Long] =
+    local {
+      val letResult = (false, evalExpr(let.value))
+      for {
+        _ <- modify[EstimatorContext, ExecutionError](lets.modify(_)(_.updated(let.name, letResult)))
+        r <- evalExpr(inner)
+      } yield r + 5
+    }
+
+  private def evalFuncBlock(func: FUNC, inner: EXPR): EvalM[Long] =
+    local {
+      for {
+        ctx <- get[EstimatorContext, ExecutionError]
+        _   <- modify[EstimatorContext, ExecutionError]((userFuncs ~ lets).modify(_)(funcCtx(_, func, ctx)))
+        r   <- evalExpr(inner)
+      } yield r + 5
+    }
+
+  private def funcCtx(
+    funcsAndLets: (Map[FunctionHeader, (FUNC, EstimatorContext)], Map[String, (Boolean, EvalM[Long])]),
+    func: FUNC,
+    ctx: EstimatorContext
+  ): (Map[FunctionHeader, (FUNC, EstimatorContext)], Map[String, (Boolean, EvalM[Long])]) = {
+    val (funcs, lets) = funcsAndLets
+    (
+      funcs.updated(FunctionHeader.User(func.name), (func, ctx)),
+      lets ++ func.args.map((_, (false, const(1)))).toMap
+    )
+  }
+
+  private def evalRef(key: String): EvalM[Long] =
+    for {
+      ctx <- get[EstimatorContext, ExecutionError]
+      r <- lets.get(ctx).get(key) match {
+        case Some((false, lzy)) =>
+          modify[EstimatorContext, ExecutionError](lets.modify(_)(_.updated(key, (true, lzy)))).flatMap(_ => lzy)
+        case Some((true,  _)) => const(0)
+        case None      => raiseError[EstimatorContext, ExecutionError, Long](s"A definition of '$key' not found")
+      }
+    } yield r + 2
+
+  private def evalIF(cond: EXPR, ifTrue: EXPR, ifFalse: EXPR): EvalM[Long] =
+    for {
+      condComplexity  <- evalExpr(cond)
+      rightComplexity <- evalExpr(ifTrue)
+      leftComplexity  <- evalExpr(ifFalse)
+    } yield condComplexity + Math.max(leftComplexity, rightComplexity) + 1
+
+  private def evalGetter(expr: EXPR, field: String): EvalM[Long] = evalExpr(expr).map(_ + 2)
+
+  private def evalFunctionCall(header: FunctionHeader, args: List[EXPR]): EvalM[Long] =
+    for {
+      ctx <- get[EstimatorContext, ExecutionError]
+      argsComplexity <- args.traverse[EvalM, Long](evalExpr).map(_.sum)
+      bodyComplexity <- predefFuncs.get(ctx).get(header).map(const)
+        .orElse(userFuncs.get(ctx).get(header).map { case (f, localCtx) =>
+            modify[EstimatorContext, ExecutionError](userFuncs.set(_)(localCtx.userFuncs))
+                .flatMap(_ => evalExpr(f.body).map(_ + f.args.size * 5))
+                .flatMap(r => modify[EstimatorContext, ExecutionError](userFuncs.set(_)(ctx.userFuncs)).map(_ => r))
+           })
+        .getOrElse(raiseError[EstimatorContext, ExecutionError, Long](s"function '$header' not found"))
+    } yield bodyComplexity + argsComplexity
+
+  private def const(l: Long): EvalM[Long] = implicitly[Monad[EvalM]].pure(l)
+
+  def evalExpr(t: EXPR): EvalM[Long] =
+    t match {
+      case LET_BLOCK(let, inner)       => evalLetBlock(let, inner)
+      case BLOCK(let: LET, inner)      => evalLetBlock(let, inner)
+      case BLOCK(f: FUNC, inner)       => evalFuncBlock(f, inner)
+      case REF(str)                    => evalRef(str)
+      case _: EVALUATED                => const(1)
+      case IF(cond, t1, t2)            => evalIF(cond, t1, t2)
+      case GETTER(expr, field)         => evalGetter(expr, field)
+      case FUNCTION_CALL(header, args) => evalFunctionCall(header, args)
+    }
+
+  def apply(
+    vars:  Set[String],
+    funcs: collection.Map[FunctionHeader, Coeval[Long]],
+    expr:  EXPR
+  ): Either[ExecutionError, Long] = {
+    val v = vars.map((_, (true, const(0)))).toMap
+    val f = funcs.toMap.mapValues(_.value)
+    evalExpr(expr).run(EstimatorContext(v, f)).value._2
+  }
+}

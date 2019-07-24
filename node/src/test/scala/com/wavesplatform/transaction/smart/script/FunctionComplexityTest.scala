@@ -8,12 +8,13 @@ import com.wavesplatform.lang.directives.values._
 import com.wavesplatform.lang.directives.{DirectiveDictionary, DirectiveSet}
 import com.wavesplatform.lang.{Global, utils}
 import com.wavesplatform.lang.v1.compiler.{ExpressionCompiler, _}
+import com.wavesplatform.lang.v1.estimator.ScriptEstimator
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.waves.WavesContext
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.{CryptoContext, PureContext}
 import com.wavesplatform.lang.v1.parser.Expressions.EXPR
 import com.wavesplatform.lang.v1.parser.Parser
 import com.wavesplatform.lang.v1.testing.TypedScriptGen
-import com.wavesplatform.lang.v1.{CTX, FunctionHeader, ScriptEstimator}
+import com.wavesplatform.lang.v1.{CTX, FunctionHeader}
 import com.wavesplatform.state.diffs.smart.predef.scriptWithAllV1Functions
 import com.wavesplatform.state.{BinaryDataEntry, BooleanDataEntry, IntegerDataEntry, StringDataEntry}
 import com.wavesplatform.transaction.Asset.Waves

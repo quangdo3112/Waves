@@ -3,17 +3,19 @@ package com.wavesplatform.lang.v1
 import cats.data.EitherT
 import cats.kernel.Monoid
 import com.wavesplatform.common.utils.EitherExt2
-import com.wavesplatform.lang.Global
+import com.wavesplatform.lang.{Common, Global}
 import com.wavesplatform.lang.Common._
+import com.wavesplatform.lang.directives.DirectiveSet
 import com.wavesplatform.lang.directives.values._
-import com.wavesplatform.lang.script.Script
+import com.wavesplatform.lang.script.{ContractScript, Script}
 import com.wavesplatform.lang.v1.compiler.Terms._
-import com.wavesplatform.lang.v1.compiler.{ExpressionCompiler, Terms}
+import com.wavesplatform.lang.v1.compiler.{ContractCompiler, ExpressionCompiler, Terms}
+import com.wavesplatform.lang.v1.estimator.ScriptEstimator
 import com.wavesplatform.lang.v1.evaluator.FunctionIds._
 import com.wavesplatform.lang.v1.evaluator.ctx._
-import com.wavesplatform.lang.v1.evaluator.ctx.impl.PureContext
+import com.wavesplatform.lang.v1.evaluator.ctx.impl.{CryptoContext, PureContext}
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.PureContext.sumLong
-import com.wavesplatform.lang.v1.evaluator.ctx.impl.waves.Types
+import com.wavesplatform.lang.v1.evaluator.ctx.impl.waves.{Types, WavesContext}
 import com.wavesplatform.lang.v1.parser.Parser
 import com.wavesplatform.lang.v1.testing.ScriptGen
 import monix.eval.Coeval
@@ -31,14 +33,16 @@ class ScriptEstimatorTest extends PropSpec with PropertyChecks with Matchers wit
     val transactionType = Types.buildTransferTransactionType(true)
     val tx              = CaseObj(transactionType, Map("amount" -> CONST_LONG(100000000L)))
     Monoid
-      .combine(
-        PureContext.build(Global, V1),
+      .combineAll(Seq(
+        PureContext.build(Global, V3),
+        CryptoContext.build(Global, V3),
+        WavesContext.build(DirectiveSet.contractDirectiveSet, Common.emptyBlockchainEnvironment()),
         CTX(
           Seq(transactionType),
           Map(("tx", (transactionType, LazyVal(EitherT.pure(tx))))),
           Array.empty
         )
-      )
+      ))
   }
 
   private def compile(code: String): EXPR = {
@@ -157,6 +161,26 @@ class ScriptEstimatorTest extends PropSpec with PropertyChecks with Matchers wit
 
     estimate(FunctionCosts, exprWithoutFuncCall) shouldBe Right(5 + 5 + 1 + 2)
     estimate(FunctionCosts, exprWithFuncCall) shouldBe Right(5 + 5 + 2 + 1 + 1)
+  }
+
+  property("transitive ref usage") {
+    def estimateRefUsage(ref: String): Long = {
+      val script = s"""
+         |  let me = addressFromStringValue("")
+         |
+         |  func get() = getStringValue($ref, "")
+         |
+         |  @Callable(i)
+         |  func test() = WriteSet([DataEntry("", get() + get() + get() + get() + get())])
+         |
+      """.stripMargin
+
+      val expr = ContractCompiler.compile(script, ctx.compilerContext).explicitGet()
+      ContractScript.estimateComplexity(V3, expr).explicitGet()._1
+    }
+
+    val addressFromStrComplexity = 124
+    estimateRefUsage("me") - estimateRefUsage("this") shouldBe addressFromStrComplexity + 1
   }
 
   property("script complexity should be constant") {
