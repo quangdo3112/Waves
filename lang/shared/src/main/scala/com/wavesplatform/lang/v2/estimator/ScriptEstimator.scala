@@ -1,13 +1,13 @@
-package com.wavesplatform.lang.v1.estimator
+package com.wavesplatform.lang.v2.estimator
 
 import cats.Monad
 import cats.implicits._
+import com.wavesplatform.lang.ExecutionError
 import com.wavesplatform.lang.v1.FunctionHeader
 import com.wavesplatform.lang.v1.compiler.Terms._
-import EstimatorContext.Lenses._
 import com.wavesplatform.lang.v1.task.imports._
-import com.wavesplatform.lang.ExecutionError
-import com.wavesplatform.lang.v1.estimator.EstimatorContext.EvalM
+import com.wavesplatform.lang.v2.estimator.EstimatorContext.EvalM
+import com.wavesplatform.lang.v2.estimator.EstimatorContext.Lenses._
 import monix.eval.Coeval
 
 object ScriptEstimator {

@@ -6,8 +6,7 @@ import com.wavesplatform.lang.script.Script
 import com.wavesplatform.lang.utils._
 import com.wavesplatform.lang.v1.ContractLimits._
 import com.wavesplatform.lang.v1.compiler.Terms._
-import com.wavesplatform.lang.v1.estimator.ScriptEstimator
-import com.wavesplatform.lang.v1.BaseGlobal
+import com.wavesplatform.lang.v1.{BaseGlobal, ScriptEstimator}
 import monix.eval.Coeval
 
 object ExprScript {

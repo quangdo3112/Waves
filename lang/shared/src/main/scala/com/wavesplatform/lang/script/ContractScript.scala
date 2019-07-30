@@ -6,8 +6,7 @@ import com.wavesplatform.lang.directives.values.{StdLibVersion, DApp => DAppType
 import com.wavesplatform.lang.utils._
 import com.wavesplatform.lang.v1.ContractLimits.{MaxComplexityByVersion, MaxContractSizeInBytes}
 import com.wavesplatform.lang.v1.compiler.Terms._
-import com.wavesplatform.lang.v1.estimator.ScriptEstimator
-import com.wavesplatform.lang.v1.{BaseGlobal, FunctionHeader}
+import com.wavesplatform.lang.v1.{BaseGlobal, FunctionHeader, ScriptEstimator}
 import monix.eval.Coeval
 import cats.implicits._
 

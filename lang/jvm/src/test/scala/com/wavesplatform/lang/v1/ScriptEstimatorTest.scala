@@ -10,7 +10,8 @@ import com.wavesplatform.lang.directives.values._
 import com.wavesplatform.lang.script.{ContractScript, Script}
 import com.wavesplatform.lang.v1.compiler.Terms._
 import com.wavesplatform.lang.v1.compiler.{ContractCompiler, ExpressionCompiler, Terms}
-import com.wavesplatform.lang.v1.estimator.ScriptEstimator
+import com.wavesplatform.lang.v1.{ScriptEstimator => EstimatorV1}
+import com.wavesplatform.lang.v2.estimator.{ScriptEstimator => EstimatorV2}
 import com.wavesplatform.lang.v1.evaluator.FunctionIds._
 import com.wavesplatform.lang.v1.evaluator.ctx._
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.{CryptoContext, PureContext}
@@ -22,14 +23,20 @@ import monix.eval.Coeval
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
 
-class ScriptEstimatorTest extends PropSpec with PropertyChecks with Matchers with ScriptGen with NoShrink {
+class ScriptEstimatorTest(estimator: (Set[String], collection.Map[FunctionHeader, Coeval[Long]], EXPR) => Either[String, Long])
+  extends PropSpec
+     with PropertyChecks
+     with Matchers
+     with ScriptGen
+     with NoShrink {
+
   val Plus  = FunctionHeader.Native(SUM_LONG)
   val Minus = FunctionHeader.Native(SUB_LONG)
   val Gt    = FunctionHeader.Native(GT_LONG)
 
   val FunctionCosts: Map[FunctionHeader, Coeval[Long]] = Map[FunctionHeader, Long](Plus -> 100, Minus -> 10, Gt -> 10).mapValues(Coeval.now)
 
-  private val ctx = {
+  protected val ctx = {
     val transactionType = Types.buildTransferTransactionType(true)
     val tx              = CaseObj(transactionType, Map("amount" -> CONST_LONG(100000000L)))
     Monoid
@@ -45,13 +52,14 @@ class ScriptEstimatorTest extends PropSpec with PropertyChecks with Matchers wit
       ))
   }
 
-  private def compile(code: String): EXPR = {
+  protected def compile(code: String): EXPR = {
     val untyped = Parser.parseExpr(code).get.value
     ExpressionCompiler(ctx.compilerContext, untyped).map(_._1).explicitGet()
   }
 
-  private def estimate(functionCosts: collection.Map[FunctionHeader, Coeval[Long]], script: EXPR) =
-    ScriptEstimator(ctx.evaluationContext.letDefs.keySet, functionCosts, script)
+  val x: (Set[String], collection.Map[FunctionHeader, Coeval[Long]], EXPR) => Either[String, Long] = ScriptEstimator(_, _, _)
+  protected def estimate(functionCosts: collection.Map[FunctionHeader, Coeval[Long]], script: EXPR) =
+    estimator(ctx.evaluationContext.letDefs.keySet, functionCosts, script)
 
   property("successful on very deep expressions(stack overflow check)") {
     val expr = (1 to 100000).foldLeft[EXPR](CONST_LONG(0)) { (acc, _) =>
@@ -161,26 +169,6 @@ class ScriptEstimatorTest extends PropSpec with PropertyChecks with Matchers wit
 
     estimate(FunctionCosts, exprWithoutFuncCall) shouldBe Right(5 + 5 + 1 + 2)
     estimate(FunctionCosts, exprWithFuncCall) shouldBe Right(5 + 5 + 2 + 1 + 1)
-  }
-
-  property("transitive ref usage") {
-    def estimateRefUsage(ref: String): Long = {
-      val script = s"""
-         |  let me = addressFromStringValue("")
-         |
-         |  func get() = getStringValue($ref, "")
-         |
-         |  @Callable(i)
-         |  func test() = WriteSet([DataEntry("", get() + get() + get() + get() + get())])
-         |
-      """.stripMargin
-
-      val expr = ContractCompiler.compile(script, ctx.compilerContext).explicitGet()
-      ContractScript.estimateComplexity(V3, expr).explicitGet()._1
-    }
-
-    val addressFromStrComplexity = 124
-    estimateRefUsage("me") - estimateRefUsage("this") shouldBe addressFromStrComplexity + 1
   }
 
   property("script complexity should be constant") {
