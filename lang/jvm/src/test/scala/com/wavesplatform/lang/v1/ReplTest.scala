@@ -47,10 +47,20 @@ class ReplTest extends PropSpec with ScriptGen with Matchers with NoShrink {
     repl.execute(s""" throw("$msg") """) shouldBe Left(msg)
   }
 
-  property("waves context funs") {
+  property("waves context funcs") {
     val repl = Repl()
     repl.execute(s""" transferTransactionById(base58'fdg') """) shouldBe Left("Blockchain state is unavailable from REPL")
     repl.execute(s""" let a = height """)
     repl.execute(s""" a """)  shouldBe Right("0")
+  }
+
+  property("state reset") {
+    val repl = Repl()
+    repl.execute("let a = 1")     shouldBe Right("Unit")
+    repl.execute("let b = a + 2") shouldBe Right("Unit")
+    repl.execute("b")             shouldBe Right("3")
+    repl.clear()
+    repl.execute("a") shouldBe Left("Compilation failed: A definition of 'a' is not found in 1-2")
+    repl.execute("b") shouldBe Left("Compilation failed: A definition of 'b' is not found in 1-2")
   }
 }

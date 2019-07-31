@@ -37,7 +37,8 @@ case class Repl(ver: StdLibVersion = V3) {
     override def blockHeaderParser(bytes: Array[Byte]): Option[BlockHeader]                                      = unavailable
   }
   private val ctx = CryptoContext.build(Global, ver) |+| PureContext.build(Global, ver) |+| WavesContext.build(contractDirectiveSet, emptyBlockchainEnv)
-  private val scriptAcc = Atomic("")
+  private val initialState = ""
+  private val scriptAcc = Atomic(initialState)
 
   def execute(expr: String): Either[String, String] =
     scriptAcc.transformAndExtract(acc => {
@@ -64,4 +65,6 @@ case class Repl(ver: StdLibVersion = V3) {
       .toEither
       .leftMap(e => if (e.getMessage != null) e.getMessage else e.toString)
       .flatten
+
+  def clear(): Unit = scriptAcc.set(initialState)
 }
