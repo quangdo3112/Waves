@@ -6,7 +6,7 @@ import com.wavesplatform.account.{AddressScheme, KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.lang.script.v1.ExprScript
 import com.wavesplatform.serialization.Deser
@@ -57,14 +57,16 @@ object IssueTransactionV2 extends TransactionParserFor[IssueTransactionV2] with 
 
   private def currentChainId = AddressScheme.current.chainId
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      Either
-        .cond(tx.chainId == currentChainId, (), GenericError(s"Wrong chainId actual: ${tx.chainId.toInt}, expected: $currentChainId"))
-        .flatMap(_ => IssueTransaction.validateIssueParams(tx))
-        .map(_ => tx)
-        .foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        Either
+          .cond(tx.chainId == currentChainId, (), GenericError(s"Wrong chainId actual: ${tx.chainId.toInt}, expected: $currentChainId"))
+          .flatMap(_ => IssueTransaction.validateIssueParams(tx))
+          .map(_ => tx)
+          .foldToTry
+      }
   }
 
   def create(chainId: Byte,
@@ -117,7 +119,7 @@ object IssueTransactionV2 extends TransactionParserFor[IssueTransactionV2] with 
     signed(chainId, sender, name, description, quantity, decimals, reissuable, script, fee, timestamp, sender)
   }
 
-  val byteTailDescription: ByteEntity[IssueTransactionV2] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[IssueTransactionV2] = {
     (
       OneByte(tailIndex(1), "Chain ID"),
       PublicKeyBytes(tailIndex(2), "Sender's public key"),
@@ -128,7 +130,11 @@ object IssueTransactionV2 extends TransactionParserFor[IssueTransactionV2] with 
       BooleanByte(tailIndex(7), "Reissuable flag (1 - True, 0 - False)"),
       LongBytes(tailIndex(8), "Fee"),
       LongBytes(tailIndex(9), "Timestamp"),
-      OptionBytes(index = tailIndex(10), name = "Script", nestedByteEntity = ScriptBytes(tailIndex(10), "Script")),
+      OptionBytes(
+        index = tailIndex(10),
+        name = "Script",
+        nestedByteEntity = ScriptBytes(tailIndex(10), "Script", estimator)
+      ),
       ProofsBytes(tailIndex(11))
     ) mapN {
       case (chainId, senderPublicKey, name, desc, quantity, decimals, reissuable, fee, timestamp, script, proofs) =>

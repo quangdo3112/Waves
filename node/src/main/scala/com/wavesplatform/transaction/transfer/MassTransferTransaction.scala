@@ -6,7 +6,7 @@ import com.wavesplatform.account.{AddressOrAlias, KeyPair, PrivateKey, PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.serialization.Deser
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.transaction.TxValidationError._
@@ -96,25 +96,27 @@ object MassTransferTransaction extends TransactionParserFor[MassTransferTransact
 
   implicit val transferFormat: Format[Transfer] = Json.format
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      Try { tx.transfers.map(_.amount).fold(tx.fee)(Math.addExact) }
-        .fold(
-          ex => Left(OverflowError),
-          totalAmount =>
-            if (tx.transfers.lengthCompare(MaxTransferCount) > 0) {
-              Left(GenericError(s"Number of transfers ${tx.transfers.length} is greater than $MaxTransferCount"))
-            } else if (tx.transfers.exists(_.amount < 0)) {
-              Left(GenericError("One of the transfers has negative amount"))
-            } else if (tx.attachment.length > TransferTransaction.MaxAttachmentSize) {
-              Left(TooBigArray)
-            } else if (tx.fee <= 0) {
-              Left(InsufficientFee())
-            } else {
-              Right(tx)
-          }
-        )
-        .foldToTry
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        Try { tx.transfers.map(_.amount).fold(tx.fee)(Math.addExact) }
+          .fold(
+            ex => Left(OverflowError),
+            totalAmount =>
+              if (tx.transfers.lengthCompare(MaxTransferCount) > 0) {
+                Left(GenericError(s"Number of transfers ${tx.transfers.length} is greater than $MaxTransferCount"))
+              } else if (tx.transfers.exists(_.amount < 0)) {
+                Left(GenericError("One of the transfers has negative amount"))
+              } else if (tx.attachment.length > TransferTransaction.MaxAttachmentSize) {
+                Left(TooBigArray)
+              } else if (tx.fee <= 0) {
+                Left(InsufficientFee())
+              } else {
+                Right(tx)
+            }
+          )
+          .foldToTry
     }
   }
 
@@ -176,7 +178,7 @@ object MassTransferTransaction extends TransactionParserFor[MassTransferTransact
     Json.toJson(transfers.map { case ParsedTransfer(address, amount) => Transfer(address.stringRepr, amount) })
   }
 
-  val byteTailDescription: ByteEntity[MassTransferTransaction] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[MassTransferTransaction] = {
     (
       PublicKeyBytes(tailIndex(1), "Sender's public key"),
       OptionBytes(index = tailIndex(2), name = "Asset ID", nestedByteEntity = AssetIdBytes(tailIndex(2), "Asset ID")),

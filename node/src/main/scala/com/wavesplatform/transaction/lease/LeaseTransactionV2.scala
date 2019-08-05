@@ -6,7 +6,7 @@ import com.wavesplatform.account.{AddressOrAlias, KeyPair, PrivateKey, PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.serialization.Deser
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction.TxValidationError._
@@ -38,15 +38,17 @@ object LeaseTransactionV2 extends TransactionParserFor[LeaseTransactionV2] with 
 
   override val typeId: Byte = LeaseTransaction.typeId
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      val (assetIdOpt, _) = Deser.parseByteArrayOption(bytes, 0, AssetIdLength)
-      Either
-        .cond(assetIdOpt.isEmpty, (), GenericError("Leasing assets is not supported yet"))
-        .flatMap(_ => LeaseTransaction.validateLeaseParams(tx))
-        .map(_ => tx)
-        .foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        val (assetIdOpt, _) = Deser.parseByteArrayOption(bytes, 0, AssetIdLength)
+        Either
+          .cond(assetIdOpt.isEmpty, (), GenericError("Leasing assets is not supported yet"))
+          .flatMap(_ => LeaseTransaction.validateLeaseParams(tx))
+          .map(_ => tx)
+          .foldToTry
+      }
   }
 
   def create(sender: PublicKey,
@@ -76,7 +78,7 @@ object LeaseTransactionV2 extends TransactionParserFor[LeaseTransactionV2] with 
     signed(sender, amount, fee, timestamp, recipient, sender)
   }
 
-  val byteTailDescription: ByteEntity[LeaseTransactionV2] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[LeaseTransactionV2] = {
     (
       OptionBytes(tailIndex(1), "Leasing asset", AssetIdBytes(tailIndex(1), "Leasing asset"), "flag (1 - asset, 0 - Waves)"),
       PublicKeyBytes(tailIndex(2), "Sender's public key"),

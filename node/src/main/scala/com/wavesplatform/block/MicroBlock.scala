@@ -7,7 +7,7 @@ import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
 import com.wavesplatform.crypto._
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.mining.Miner.MaxTransactionsPerMicroblock
 import com.wavesplatform.state._
 import com.wavesplatform.transaction.TxValidationError.GenericError
@@ -82,7 +82,7 @@ object MicroBlock extends ScorexLogging {
       nonSigned.copy(signature = ByteStr(signature))
     }
 
-  def parseBytes(bytes: Array[Byte]): Try[MicroBlock] =
+  def parseBytes(bytes: Array[Byte], estimator: ScriptEstimator): Try[MicroBlock] =
     Try {
 
       val version = bytes.head
@@ -98,7 +98,7 @@ object MicroBlock extends ScorexLogging {
       val tBytesLength = Ints.fromByteArray(bytes.slice(position, position + 4))
       position += 4
       val tBytes       = bytes.slice(position, position + tBytesLength)
-      val txBlockField = transParseBytes(version, tBytes).get
+      val txBlockField = transParseBytes(version, tBytes, estimator).get
       position += tBytesLength
 
       val genPK = bytes.slice(position, position + KeyLength)

@@ -7,6 +7,7 @@ import com.wavesplatform.Exporter.Formats
 import com.wavesplatform.block.Block
 import com.wavesplatform.consensus.PoSSelector
 import com.wavesplatform.db.openDB
+import com.wavesplatform.features.EstimatorProvider._
 import com.wavesplatform.history.StorageFactory
 import com.wavesplatform.protobuf.block.PBBlocks
 import com.wavesplatform.state.appender.BlockAppender
@@ -70,7 +71,11 @@ object Importer extends ScorexLogging {
                   } else {
                     val Right(block) =
                       if (format == Formats.Binary) Block.parseBytes(buffer).toEither
-                      else PBBlocks.vanilla(PBBlocks.addChainId(protobuf.block.PBBlock.parseFrom(buffer)), unsafe = true)
+                      else PBBlocks.vanilla(
+                        PBBlocks.addChainId(protobuf.block.PBBlock.parseFrom(buffer)),
+                        blockchainUpdater.estimator(),
+                        unsafe = true
+                      )
 
                     if (blockchainUpdater.lastBlockId.contains(block.reference)) {
                       Await.result(extAppender.apply(block).runAsync, Duration.Inf) match {

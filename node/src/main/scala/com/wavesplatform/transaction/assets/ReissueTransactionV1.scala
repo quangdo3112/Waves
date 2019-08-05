@@ -6,7 +6,7 @@ import com.wavesplatform.account.{KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.description._
@@ -37,13 +37,15 @@ object ReissueTransactionV1 extends TransactionParserFor[ReissueTransactionV1] w
 
   override val typeId: Byte = ReissueTransaction.typeId
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      ReissueTransaction
-        .validateReissueParams(tx)
-        .map(_ => tx)
-        .foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        ReissueTransaction
+          .validateReissueParams(tx)
+          .map(_ => tx)
+          .foldToTry
+      }
   }
 
   def create(sender: PublicKey,
@@ -81,7 +83,7 @@ object ReissueTransactionV1 extends TransactionParserFor[ReissueTransactionV1] w
     }
   }
 
-  val byteTailDescription: ByteEntity[ReissueTransactionV1] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[ReissueTransactionV1] = {
     (
       SignatureBytes(tailIndex(1), "Signature"),
       ConstantByte(tailIndex(2), value = typeId, name = "Transaction type"),

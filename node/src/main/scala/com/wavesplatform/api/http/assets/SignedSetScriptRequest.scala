@@ -3,7 +3,7 @@ package com.wavesplatform.api.http.assets
 import cats.implicits._
 import com.wavesplatform.account.PublicKey
 import com.wavesplatform.api.http.BroadcastRequest
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.transaction.smart.SetScriptTransaction
 import com.wavesplatform.transaction.Proofs
@@ -36,12 +36,12 @@ case class SignedSetScriptRequest(@ApiModelProperty(value = "Base58 encoded send
                                   @ApiModelProperty(required = true)
                                   proofs: List[String])
     extends BroadcastRequest {
-  def toTx: Either[ValidationError, SetScriptTransaction] =
+  def toTx(estimator: ScriptEstimator): Either[ValidationError, SetScriptTransaction] =
     for {
       _sender <- PublicKey.fromBase58String(senderPublicKey)
       _script <- script match {
         case None | Some("") => Right(None)
-        case Some(s)         => Script.fromBase64String(s).map(Some(_))
+        case Some(s)         => Script.fromBase64String(s, estimator).map(Some(_))
       }
       _proofBytes <- proofs.traverse(s => parseBase58(s, "invalid proof", Proofs.MaxProofStringSize))
       _proofs     <- Proofs.create(_proofBytes)

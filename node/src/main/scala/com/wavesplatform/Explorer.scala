@@ -10,6 +10,7 @@ import com.wavesplatform.account.{Address, AddressScheme}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, Base64, EitherExt2}
 import com.wavesplatform.database.{DBExt, Keys, LevelDBWriter}
+import com.wavesplatform.features.EstimatorProvider._
 import com.wavesplatform.db.openDB
 import com.wavesplatform.settings.{WavesSettings, loadConfig}
 import com.wavesplatform.state.{Height, TxNum}
@@ -245,7 +246,7 @@ object Explorer extends ScorexLogging {
 
               for {
                 idx <- Try(Shorts.fromByteArray(k.slice(6, 8)))
-                tx  <- TransactionParsers.parseBytes(v)
+                tx  <- TransactionParsers.parseBytes(v, reader.estimator())
               } txs.append((TxNum(idx), tx))
             }
           } finally iterator.close()

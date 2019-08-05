@@ -6,7 +6,7 @@ import com.wavesplatform.account.{Address, AddressOrAlias, Alias, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto.{KeyLength, SignatureLength}
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.lang.script.{Script, ScriptReader}
 import com.wavesplatform.lang.v1.compiler.Terms
 import com.wavesplatform.lang.v1.compiler.Terms.FUNCTION_CALL
@@ -417,7 +417,7 @@ case class AssetIdBytes(index: Int, name: String) extends ByteEntity[IssuedAsset
   }
 }
 
-case class ScriptBytes(index: Int, name: String) extends ByteEntity[Script] {
+case class ScriptBytes(index: Int, name: String, estimator: ScriptEstimator) extends ByteEntity[Script] {
 
   def generateDoc: Seq[ByteEntityDescription] = {
     Seq(
@@ -429,7 +429,7 @@ case class ScriptBytes(index: Int, name: String) extends ByteEntity[Script] {
   def deserialize(buf: Array[Byte], offset: Int): Try[(Script, Int)] = {
     Try {
       val scriptLength = Shorts.fromByteArray(buf.slice(offset, offset + 2))
-      ScriptReader.fromBytes(buf.slice(offset + 2, offset + 2 + scriptLength)).explicitGet() -> (offset + 2 + scriptLength)
+      ScriptReader.fromBytes(buf.slice(offset + 2, offset + 2 + scriptLength), estimator).explicitGet() -> (offset + 2 + scriptLength)
     }
   }
 }

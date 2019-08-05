@@ -6,7 +6,7 @@ import com.wavesplatform.account.{KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.transaction.TxValidationError._
 import com.wavesplatform.transaction._
@@ -63,18 +63,20 @@ object SponsorFeeTransaction extends TransactionParserFor[SponsorFeeTransaction]
   override val typeId: Byte                 = 14
   override val supportedVersions: Set[Byte] = Set(version)
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      (
-        if (tx.minSponsoredAssetFee.exists(_ < 0)) {
-          Left(NegativeMinFee(tx.minSponsoredAssetFee.get, "asset"))
-        } else if (tx.fee <= 0) {
-          Left(InsufficientFee())
-        } else {
-          Right(tx)
-        }
-      ).foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        (
+          if (tx.minSponsoredAssetFee.exists(_ < 0)) {
+            Left(NegativeMinFee(tx.minSponsoredAssetFee.get, "asset"))
+          } else if (tx.fee <= 0) {
+            Left(InsufficientFee())
+          } else {
+            Right(tx)
+          }
+          ).foldToTry
+      }
   }
 
   def create(sender: PublicKey,
@@ -111,7 +113,7 @@ object SponsorFeeTransaction extends TransactionParserFor[SponsorFeeTransaction]
     signed(sender, asset, minSponsoredAssetFee, fee, timestamp, sender)
   }
 
-  val byteTailDescription: ByteEntity[SponsorFeeTransaction] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[SponsorFeeTransaction] = {
     (
       OneByte(tailIndex(1), "Transaction type"),
       OneByte(tailIndex(2), "Version"),

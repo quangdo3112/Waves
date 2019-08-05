@@ -6,7 +6,7 @@ import com.wavesplatform.account.{PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.assets.exchange.ExchangeTransaction._
@@ -90,16 +90,18 @@ object ExchangeTransactionV1 extends TransactionParserFor[ExchangeTransactionV1]
     }
   }
 
-  override def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      ExchangeTransaction
-        .validateExchangeParams(tx)
-        .map(_ => tx)
-        .foldToTry
-    }
+  override def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        ExchangeTransaction
+          .validateExchangeParams(tx)
+          .map(_ => tx)
+          .foldToTry
+      }
   }
 
-  val byteTailDescription: ByteEntity[ExchangeTransactionV1] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[ExchangeTransactionV1] = {
     (
       IntBytes(tailIndex(1), "Buy order object length (BN)"),
       IntBytes(tailIndex(2), "Sell order object length (SN)"),

@@ -16,6 +16,7 @@ import com.wavesplatform.block.Block.BlockId
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.Base58
 import com.wavesplatform.crypto
+import com.wavesplatform.features.EstimatorProvider._
 import com.wavesplatform.lang.ValidationError
 import com.wavesplatform.mining.{Miner, MinerDebugInfo}
 import com.wavesplatform.network.{LocalScoreChanged, PeerDatabase, PeerInfo, _}
@@ -347,7 +348,7 @@ case class DebugApiRoute(ws: WavesSettings,
         val h  = blockchain.height
         val t0 = System.nanoTime
         val tracedDiff = for {
-          tx <- TracedResult(TransactionFactory.fromSignedRequest(jsv))
+          tx <- TracedResult(TransactionFactory.fromSignedRequest(jsv, blockchain.estimator()))
           _  <- Verifier(blockchain, h)(tx)
           ei <- TransactionDiffer(blockchain.lastBlockTimestamp, time.correctedTime(), h)(blockchain, tx)
         } yield ei

@@ -4,10 +4,9 @@ import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.lang.directives.values.V3
 import com.wavesplatform.lang.v1.ScriptEstimatorTest
 import com.wavesplatform.lang.utils._
-import com.wavesplatform.lang.v2.estimator.ScriptEstimator
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 
-
-class ScriptEstimatorV2Test extends ScriptEstimatorTest(ScriptEstimator(_, _, _)) {
+class ScriptEstimatorV2Test extends ScriptEstimatorTest(ScriptEstimatorV2.apply) {
   property("transitive ref usage") {
     def estimateRefUsage(ref: String): Long = {
       val script = s"""

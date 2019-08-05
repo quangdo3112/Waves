@@ -9,10 +9,12 @@ import com.wavesplatform.account.PrivateKey
 import com.wavesplatform.api.http.ApiError.{ScriptCompilerError, TooBigArrayAllocation}
 import com.wavesplatform.common.utils._
 import com.wavesplatform.crypto
+import com.wavesplatform.features.EstimatorProvider._
 import com.wavesplatform.lang.Global
 import com.wavesplatform.lang.contract.meta.RecKeyValueFolder
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.settings.RestAPISettings
+import com.wavesplatform.state.Blockchain
 import com.wavesplatform.state.diffs.FeeValidation
 import com.wavesplatform.transaction.smart.script.ScriptCompiler
 import com.wavesplatform.utils.Time
@@ -25,7 +27,7 @@ import scala.concurrent.ExecutionContext
 
 @Path("/utils")
 @Api(value = "/utils", description = "Useful functions", position = 3, produces = "application/json")
-case class UtilsApiRoute(timeService: Time, settings: RestAPISettings) extends ApiRoute with WithSettings {
+case class UtilsApiRoute(timeService: Time, settings: RestAPISettings, blockchain: Blockchain) extends ApiRoute with WithSettings {
 
   import UtilsApiRoute._
 
@@ -62,7 +64,7 @@ case class UtilsApiRoute(timeService: Time, settings: RestAPISettings) extends A
     import play.api.libs.json.Json.toJsFieldJsValueWrapper
 
     (post & entity(as[String]) & withExecutionContext(decompilerExecutionContext)) { code =>
-      Script.fromBase64String(code.trim, checkComplexity = false) match {
+      Script.fromBase64String(code.trim, blockchain.estimator(), checkComplexity = false) match {
         case Left(err) => complete(err)
         case Right(script) =>
           val (scriptText, meta) = Script.decompile(script)
@@ -104,7 +106,7 @@ case class UtilsApiRoute(timeService: Time, settings: RestAPISettings) extends A
     (post & entity(as[String])) { code =>
       parameter('assetScript.as[Boolean] ? false) { isAssetScript =>
         complete(
-          ScriptCompiler(code, isAssetScript).fold(
+          ScriptCompiler(code, isAssetScript, blockchain.estimator()).fold(
             e => ScriptCompilerError(e), {
               case (script, complexity) =>
                 Json.obj(
@@ -139,8 +141,7 @@ case class UtilsApiRoute(timeService: Time, settings: RestAPISettings) extends A
   def compileCode: Route = path("script" / "compileCode") {
     (post & entity(as[String])) { code =>
       complete(
-        ScriptCompiler
-          .compile(code)
+        ScriptCompiler.compile(code, blockchain.estimator())
           .fold(
             e => ScriptCompilerError(e), {
               case (script, complexity) =>
@@ -175,7 +176,7 @@ case class UtilsApiRoute(timeService: Time, settings: RestAPISettings) extends A
     import ScriptWithImportsRequest._
     (post & entity(as[ScriptWithImportsRequest])) { req =>
       complete(
-        ScriptCompiler.compile(req.script, req.imports)
+        ScriptCompiler.compile(req.script, blockchain.estimator(), req.imports)
           .fold(
             e => ScriptCompilerError(e),
             {
@@ -211,12 +212,11 @@ case class UtilsApiRoute(timeService: Time, settings: RestAPISettings) extends A
   def estimate: Route = path("script" / "estimate") {
     (post & entity(as[String])) { code =>
       complete(
-        Script
-          .fromBase64String(code, checkComplexity = false)
+        Script.fromBase64String(code, blockchain.estimator(), checkComplexity = false)
           .left
           .map(_.m)
           .flatMap { script =>
-            ScriptCompiler.estimate(script, script.stdLibVersion).map((script, _))
+            ScriptCompiler.estimate(script, script.stdLibVersion, blockchain.estimator()).map((script, _))
           }
           .fold(
             e => ScriptCompilerError(e), {
@@ -258,7 +258,7 @@ case class UtilsApiRoute(timeService: Time, settings: RestAPISettings) extends A
         & entity(as[String])
         & withExecutionContext(decompilerExecutionContext)
     ) { code =>
-      val result: ToResponseMarshallable = Global.scriptMeta(code)
+      val result: ToResponseMarshallable = Global.scriptMeta(code, blockchain.estimator())
         .map(metaConverter.foldRoot)
         .fold(e => e, r => r)
       complete(result)
@@ -395,7 +395,7 @@ case class UtilsApiRoute(timeService: Time, settings: RestAPISettings) extends A
   def transactionSerialize: Route = (pathPrefix("transactionSerialize") & post) {
     handleExceptions(jsonExceptionHandler) {
       json[JsObject] { jsv =>
-        parseOrCreateTransaction(jsv)(tx => Json.obj("bytes" -> tx.bodyBytes().map(_.toInt & 0xff)))
+        parseOrCreateTransaction(jsv, blockchain.estimator())(tx => Json.obj("bytes" -> tx.bodyBytes().map(_.toInt & 0xff)))
       }
     }
   }

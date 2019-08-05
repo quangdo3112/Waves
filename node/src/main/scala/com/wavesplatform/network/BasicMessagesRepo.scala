@@ -8,6 +8,7 @@ import com.wavesplatform.account.PublicKey
 import com.wavesplatform.block.{Block, MicroBlock}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.crypto._
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.mining.Miner.MaxTransactionsPerMicroblock
 import com.wavesplatform.network.message.Message._
 import com.wavesplatform.network.message._
@@ -164,7 +165,7 @@ object TransactionSpec extends MessageSpec[Transaction] {
   override val maxLength: Int = 150 * 1024
 
   override def deserializeData(bytes: Array[Byte]): Try[Transaction] =
-    TransactionParsers.parseBytes(bytes)
+    TransactionParsers.parseBytes(bytes, ScriptEstimatorV2.apply)        //todo !!! resolve estimator
 
   override def serializeData(tx: Transaction): Array[Byte] = tx.bytes()
 }

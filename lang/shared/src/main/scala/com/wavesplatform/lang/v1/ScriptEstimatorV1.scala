@@ -4,8 +4,8 @@ import cats.data.EitherT
 import com.wavesplatform.lang.v1.compiler.Terms._
 import monix.eval.Coeval
 
-object ScriptEstimator {
-  def apply(declaredVals: Set[String], functionCosts: collection.Map[FunctionHeader, Coeval[Long]], t: EXPR): Either[String, Long] = {
+object ScriptEstimatorV1 {
+  def apply(declaredVals: Set[String], functionCosts: Map[FunctionHeader, Coeval[Long]], t: EXPR): Either[String, Long] = {
     type Result[T] = EitherT[Coeval, String, T]
 
     def aux(t: Result[EXPR],

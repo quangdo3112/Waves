@@ -6,7 +6,7 @@ import com.wavesplatform.account.{AddressOrAlias, KeyPair, PrivateKey, PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.description._
@@ -39,13 +39,15 @@ object TransferTransactionV2 extends TransactionParserFor[TransferTransactionV2]
   override val typeId: Byte                 = TransferTransaction.typeId
   override val supportedVersions: Set[Byte] = Set(2)
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      TransferTransaction
-        .validate(tx)
-        .map(_ => tx)
-        .foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        TransferTransaction
+          .validate(tx)
+          .map(_ => tx)
+          .foldToTry
+      }
   }
 
   def create(assetId: Asset,
@@ -87,7 +89,7 @@ object TransferTransactionV2 extends TransactionParserFor[TransferTransactionV2]
     signed(assetId, sender, recipient, amount, timestamp, feeAssetId, feeAmount, attachment, sender)
   }
 
-  val byteTailDescription: ByteEntity[TransferTransactionV2] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[TransferTransactionV2] = {
     (
       PublicKeyBytes(tailIndex(1), "Sender's public key"),
       OptionBytes(tailIndex(2), "Asset ID", AssetIdBytes(tailIndex(2), "Asset ID"), "flag (1 - asset, 0 - Waves)"),

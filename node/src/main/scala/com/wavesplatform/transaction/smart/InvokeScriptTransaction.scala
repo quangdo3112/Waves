@@ -6,7 +6,7 @@ import com.wavesplatform.account._
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.lang.v1.compiler.Terms
 import com.wavesplatform.lang.v1.compiler.Terms.{ARR, CaseObj, EVALUATED, FUNCTION_CALL}
 import com.wavesplatform.lang.v1.evaluator.ContractEvaluator
@@ -106,12 +106,14 @@ object InvokeScriptTransaction extends TransactionParserFor[InvokeScriptTransact
 
   private def currentChainId: Byte = AddressScheme.current.chainId
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      validate(tx)
-        .map(_ => tx)
-        .foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        validate(tx)
+          .map(_ => tx)
+          .foldToTry
+      }
   }
 
   def create(sender: PublicKey,
@@ -199,7 +201,7 @@ object InvokeScriptTransaction extends TransactionParserFor[InvokeScriptTransact
     } yield ()
   }
 
-  val byteTailDescription: ByteEntity[InvokeScriptTransaction] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[InvokeScriptTransaction] = {
     (
       OneByte(tailIndex(1), "Chain ID"),
       PublicKeyBytes(tailIndex(2), "Sender's public key"),

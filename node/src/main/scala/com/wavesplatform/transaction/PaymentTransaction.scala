@@ -7,7 +7,7 @@ import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
 import com.wavesplatform.crypto._
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction.TransactionParsers._
 import com.wavesplatform.transaction.description._
@@ -73,12 +73,12 @@ object PaymentTransaction extends TransactionParserFor[PaymentTransaction] with 
     }
   }
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
     Try {
 
       require(bytes.length >= BaseLength, "Data does not match base length")
 
-      byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
+      byteTailDescription(estimator).deserializeFromByteArray(bytes).flatMap { tx =>
         (
           if (tx.amount <= 0) {
             Left(TxValidationError.NonPositiveAmount(tx.amount, "waves")) //CHECK IF AMOUNT IS POSITIVE
@@ -94,7 +94,7 @@ object PaymentTransaction extends TransactionParserFor[PaymentTransaction] with 
     }.flatten
   }
 
-  val byteTailDescription: ByteEntity[PaymentTransaction] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[PaymentTransaction] = {
     (
       LongBytes(tailIndex(1), "Timestamp"),
       PublicKeyBytes(tailIndex(2), "Sender's public key"),

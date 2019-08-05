@@ -11,7 +11,10 @@ import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.consensus.nxt.{NxtConsensusBlockField, NxtLikeConsensusBlockData}
 import com.wavesplatform.crypto
 import com.wavesplatform.crypto._
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.features.BlockchainFeatures
+import com.wavesplatform.lang.v1.ScriptEstimatorV1
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.settings.GenesisSettings
 import com.wavesplatform.state._
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
@@ -210,7 +213,7 @@ object Block extends ScorexLogging {
 
   val TransactionSizeLength = 4
 
-  def transParseBytes(version: Int, bytes: Array[Byte]): Try[Seq[Transaction]] = Try {
+  def transParseBytes(version: Int, bytes: Array[Byte], estimator: ScriptEstimator): Try[Seq[Transaction]] = Try {
     if (bytes.isEmpty) {
       Seq.empty
     } else {
@@ -228,7 +231,7 @@ object Block extends ScorexLogging {
           val transactionLengthBytes = v._1.slice(pos, pos + TransactionSizeLength)
           val transactionLength      = Ints.fromByteArray(transactionLengthBytes)
           val transactionBytes       = v._1.slice(pos + TransactionSizeLength, pos + TransactionSizeLength + transactionLength)
-          txs += TransactionParsers.parseBytes(transactionBytes).get
+          txs += TransactionParsers.parseBytes(transactionBytes, estimator).get
           pos + TransactionSizeLength + transactionLength
       }
 
@@ -239,7 +242,10 @@ object Block extends ScorexLogging {
   def parseBytes(bytes: Array[Byte]): Try[Block] =
     for {
       (blockHeader, transactionBytes) <- BlockHeader.parseBytes(bytes)
-      transactionsData                <- transParseBytes(blockHeader.version, transactionBytes)
+      estimator: ScriptEstimator =
+        if (blockHeader.featureVotes.contains(BlockchainFeatures.NewScriptEstimator.id)) ScriptEstimatorV2.apply _
+        else ScriptEstimatorV1.apply _
+      transactionsData                <- transParseBytes(blockHeader.version, transactionBytes, estimator)
       block <- build(
         blockHeader.version,
         blockHeader.timestamp,

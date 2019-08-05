@@ -12,6 +12,7 @@ import com.wavesplatform.api.http.leasing._
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.Base58
 import com.wavesplatform.http.ApiMarshallers
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.transaction.TxValidationError.GenericError
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.assets._
@@ -38,7 +39,7 @@ package object http extends ApiMarshallers {
       stringToByteReads
   }
 
-  def createTransaction(senderPk: String, jsv: JsObject)(txToResponse: Transaction => ToResponseMarshallable): ToResponseMarshallable = {
+  def createTransaction(senderPk: String, jsv: JsObject, estimator: ScriptEstimator)(txToResponse: Transaction => ToResponseMarshallable): ToResponseMarshallable = {
     val typeId = (jsv \ "type").as[Byte]
 
     (jsv \ "version").validateOpt[Byte](versionReads) match {
@@ -55,7 +56,7 @@ package object http extends ApiMarshallers {
               case Some(x) =>
                 x match {
                   case IssueTransactionV1        => TransactionFactory.issueAssetV1(txJson.as[IssueV1Request], senderPk)
-                  case IssueTransactionV2        => TransactionFactory.issueAssetV2(txJson.as[IssueV2Request], senderPk)
+                  case IssueTransactionV2        => TransactionFactory.issueAssetV2(txJson.as[IssueV2Request], senderPk, estimator)
                   case TransferTransactionV1     => TransactionFactory.transferAssetV1(txJson.as[TransferV1Request], senderPk)
                   case TransferTransactionV2     => TransactionFactory.transferAssetV2(txJson.as[TransferV2Request], senderPk)
                   case ReissueTransactionV1      => TransactionFactory.reissueAssetV1(txJson.as[ReissueV1Request], senderPk)
@@ -71,8 +72,8 @@ package object http extends ApiMarshallers {
                   case CreateAliasTransactionV2  => TransactionFactory.aliasV2(txJson.as[CreateAliasV2Request], senderPk)
                   case DataTransaction           => TransactionFactory.data(txJson.as[DataRequest], senderPk)
                   case InvokeScriptTransaction   => TransactionFactory.invokeScript(txJson.as[InvokeScriptRequest], senderPk)
-                  case SetScriptTransaction      => TransactionFactory.setScript(txJson.as[SetScriptRequest], senderPk)
-                  case SetAssetScriptTransaction => TransactionFactory.setAssetScript(txJson.as[SetAssetScriptRequest], senderPk)
+                  case SetScriptTransaction      => TransactionFactory.setScript(txJson.as[SetScriptRequest], senderPk, estimator)
+                  case SetAssetScriptTransaction => TransactionFactory.setAssetScript(txJson.as[SetAssetScriptRequest], senderPk, estimator)
                   case SponsorFeeTransaction     => TransactionFactory.sponsor(txJson.as[SponsorFeeRequest], senderPk)
                   case ExchangeTransactionV1     => TransactionFactory.exchangeV1(txJson.as[SignedExchangeRequest], senderPk)
                   case ExchangeTransactionV2     => TransactionFactory.exchangeV2(txJson.as[SignedExchangeRequestV2], senderPk)
@@ -83,12 +84,15 @@ package object http extends ApiMarshallers {
     }
   }
 
-  def parseOrCreateTransaction(jsv: JsObject)(txToResponse: Transaction => ToResponseMarshallable): ToResponseMarshallable = {
-    val result = TransactionFactory.fromSignedRequest(jsv)
+  def parseOrCreateTransaction(
+    jsv:       JsObject,
+    estimator: ScriptEstimator
+  )(txToResponse: Transaction => ToResponseMarshallable): ToResponseMarshallable = {
+    val result = TransactionFactory.fromSignedRequest(jsv, estimator)
     if (result.isRight) {
       result.fold(ApiError.fromValidationError, txToResponse)
     } else {
-      createTransaction((jsv \ "senderPk").as[String], jsv)(txToResponse)
+      createTransaction((jsv \ "senderPk").as[String], jsv, estimator)(txToResponse)
     }
   }
 

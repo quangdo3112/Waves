@@ -2,6 +2,7 @@ package com.wavesplatform.lang.script
 
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.Base64
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.lang.ValidationError.ScriptParseError
 import com.wavesplatform.lang.directives.values._
 import com.wavesplatform.lang.script.ContractScript.ContractScriptImpl
@@ -36,10 +37,14 @@ object Script {
 
   val checksumLength = 4
 
-  def fromBase64String(str: String, checkComplexity: Boolean = true): Either[ScriptParseError, Script] =
+  def fromBase64String(
+    str:             String,
+    estimator:       ScriptEstimator,
+    checkComplexity: Boolean = true
+  ): Either[ScriptParseError, Script] =
     for {
       bytes  <- Base64.tryDecode(str).toEither.left.map(ex => ScriptParseError(s"Unable to decode base64: ${ex.getMessage}"))
-      script <- ScriptReader.fromBytes(bytes, checkComplexity)
+      script <- ScriptReader.fromBytes(bytes, estimator, checkComplexity)
     } yield script
 
   type DirectiveMeta = List[(String, Any)]

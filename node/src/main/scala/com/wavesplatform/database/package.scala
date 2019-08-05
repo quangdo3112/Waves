@@ -55,15 +55,6 @@ package object database {
       BigInt(b)
     }
 
-    def readScriptOption(): Option[Script] = {
-      if (input.readBoolean()) {
-        val len = input.readShort()
-        val b   = new Array[Byte](len)
-        input.readFully(b)
-        Some(ScriptReader.fromBytes(b).explicitGet())
-      } else None
-    }
-
     def readBytes(len: Int): Array[Byte] = {
       val arr = new Array[Byte](len)
       input.readFully(arr)
@@ -175,9 +166,6 @@ package object database {
     ndo.writeLong(vf.fee)
     ndo.toByteArray
   }
-
-  def readTransactionInfo(data: Array[Byte]): (Int, Transaction) =
-    (Ints.fromByteArray(data), TransactionParsers.parseBytes(data.drop(4)).get)
 
   def readTransactionHeight(data: Array[Byte]): Int = Ints.fromByteArray(data)
 

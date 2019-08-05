@@ -11,6 +11,7 @@ import com.wavesplatform.lang.v1.evaluator.ctx.impl.PureContext
 import com.wavesplatform.lang.v1.parser.Expressions
 import com.wavesplatform.lang.v1.testing.ScriptGen
 import com.wavesplatform.lang.v1.{FunctionHeader, Serde}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.{Assertion, FreeSpec, Matchers}
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
@@ -114,7 +115,7 @@ class SerdeTest extends FreeSpec with PropertyChecks with Matchers with ScriptGe
 
   "incorrect base64" in {
     def measureBase64Deser(base64: String): Unit = {
-      val (r, time) = measureTime(Script.fromBase64String(base64))
+      val (r, time) = measureTime(Script.fromBase64String(base64, ScriptEstimatorV2.apply))
 
       r should produce("arguments too big")
       time should be <= 1000L

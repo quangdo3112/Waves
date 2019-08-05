@@ -1,5 +1,6 @@
 package com.wavesplatform.transaction.smart.script
 
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.lang.directives.Directive.extractValue
 import com.wavesplatform.lang.directives.DirectiveKey._
 import com.wavesplatform.lang.directives._
@@ -9,42 +10,51 @@ import com.wavesplatform.lang.script.v1.ExprScript
 import com.wavesplatform.lang.script.{ContractScript, Script, ScriptPreprocessor}
 import com.wavesplatform.lang.utils._
 import com.wavesplatform.lang.v1.compiler.{ContractCompiler, ExpressionCompiler}
-import com.wavesplatform.lang.v1.ScriptEstimator
 import com.wavesplatform.utils._
 
 object ScriptCompiler extends ScorexLogging {
 
   @Deprecated
-  def apply(scriptText: String, isAssetScript: Boolean): Either[String, (Script, Long)] = {
+  def apply(
+    scriptText:    String,
+    isAssetScript: Boolean,
+    estimator:     ScriptEstimator
+  ): Either[String, (Script, Long)] =
     for {
       directives <- DirectiveParser(scriptText)
       contentType = extractValue(directives, CONTENT_TYPE)
       version     = extractValue(directives, STDLIB_VERSION)
       scriptType  = if (isAssetScript) Asset else Account
       _      <- DirectiveSet(version, scriptType, contentType)
-      script <- tryCompile(scriptText, contentType, version, isAssetScript)
+      script <- tryCompile(scriptText, contentType, version, isAssetScript, estimator)
     } yield (script, script.complexity)
-  }
 
   def compile(
     scriptText: String,
+    estimator:  ScriptEstimator,
     libraries:  Map[String, String] = Map()
   ): Either[String, (Script, Long)] = {
     for {
       directives  <- DirectiveParser(scriptText)
       ds          <- Directive.extractDirectives(directives)
       linkedInput <- ScriptPreprocessor(scriptText, libraries, ds)
-      result      <- apply(linkedInput, ds.scriptType == Asset)
+      result      <- apply(linkedInput, ds.scriptType == Asset, estimator)
     } yield result
   }
 
-  private def tryCompile(src: String, cType: ContentType, version: StdLibVersion, isAssetScript: Boolean): Either[String, Script] = {
+  private def tryCompile(
+    src:           String,
+    cType:         ContentType,
+    version:       StdLibVersion,
+    isAssetScript: Boolean,
+    estimator:     ScriptEstimator
+  ): Either[String, Script] = {
     val ctx = compilerContext(version, cType, isAssetScript)
     try {
       cType match {
-        case Expression => ExpressionCompiler.compile(src, ctx).flatMap(expr => ExprScript.apply(version, expr))
-        case DApp       => ContractCompiler.compile(src, ctx).flatMap(expr => ContractScript.apply(version, expr))
-        case Library    => ExpressionCompiler.compileDecls(src, ctx).flatMap(ExprScript(version, _))
+        case Expression => ExpressionCompiler.compile(src, ctx).flatMap(ExprScript(version, _, estimator))
+        case DApp       => ContractCompiler.compile(src, ctx).flatMap(ContractScript(version, _, estimator))
+        case Library    => ExpressionCompiler.compileDecls(src, ctx).flatMap(ExprScript(version, _, estimator))
       }
     } catch {
       case ex: Throwable =>
@@ -55,10 +65,15 @@ object ScriptCompiler extends ScorexLogging {
     }
   }
 
-  def estimate(script: Script, version: StdLibVersion): Either[String, Long] = script match {
-    case s: ExprScript         => ScriptEstimator(varNames(version, Expression), functionCosts(version), s.expr)
-    case s: ContractScriptImpl => ContractScript.estimateComplexity(version, s.expr).map(_._1)
-    case _                     => ???
-  }
+  def estimate(
+    script:    Script,
+    version:   StdLibVersion,
+    estimator: ScriptEstimator
+  ): Either[String, Long] =
+    script match {
+      case s: ExprScript         => estimator(varNames(version, Expression), functionCosts(version), s.expr)
+      case s: ContractScriptImpl => ContractScript.estimateComplexity(version, s.expr, estimator).map(_._1)
+      case _                     => ???
+    }
 
 }

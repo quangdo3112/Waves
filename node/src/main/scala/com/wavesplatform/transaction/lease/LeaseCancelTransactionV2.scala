@@ -6,7 +6,7 @@ import com.wavesplatform.account.{AddressScheme, KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.TxValidationError.GenericError
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.description._
@@ -37,14 +37,16 @@ object LeaseCancelTransactionV2 extends TransactionParserFor[LeaseCancelTransact
   override def supportedVersions: Set[Byte] = Set(2)
   private def currentChainId: Byte          = AddressScheme.current.chainId
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      Either
-        .cond(tx.chainId == currentChainId, (), GenericError(s"Wrong chainId actual: ${tx.chainId.toInt}, expected: $currentChainId"))
-        .flatMap(_ => LeaseCancelTransaction.validateLeaseCancelParams(tx))
-        .map(_ => tx)
-        .foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        Either
+          .cond(tx.chainId == currentChainId, (), GenericError(s"Wrong chainId actual: ${tx.chainId.toInt}, expected: $currentChainId"))
+          .flatMap(_ => LeaseCancelTransaction.validateLeaseCancelParams(tx))
+          .map(_ => tx)
+          .foldToTry
+      }
   }
 
   def create(chainId: Byte,
@@ -74,7 +76,7 @@ object LeaseCancelTransactionV2 extends TransactionParserFor[LeaseCancelTransact
     signed(chainId, sender, leaseId, fee, timestamp, sender)
   }
 
-  val byteTailDescription: ByteEntity[LeaseCancelTransactionV2] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[LeaseCancelTransactionV2] = {
     (
       OneByte(tailIndex(1), "Chain ID"),
       PublicKeyBytes(tailIndex(2), "Sender's public key"),

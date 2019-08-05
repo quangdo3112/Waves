@@ -1,12 +1,14 @@
 package com.wavesplatform.lang.script.v1
 
 import com.wavesplatform.common.state.ByteStr
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.lang.directives.values._
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.lang.utils._
 import com.wavesplatform.lang.v1.ContractLimits._
 import com.wavesplatform.lang.v1.compiler.Terms._
-import com.wavesplatform.lang.v1.{BaseGlobal, ScriptEstimator}
+import com.wavesplatform.lang.v1.BaseGlobal
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import monix.eval.Coeval
 
 object ExprScript {
@@ -20,13 +22,19 @@ object ExprScript {
 
   def apply(x: EXPR): Either[String, Script] = apply(V1, x)
 
-  def apply(version: StdLibVersion, x: EXPR, checkSize: Boolean = true, checkComplexity: Boolean = true): Either[String, Script] =
+  def apply(
+    version:         StdLibVersion,
+    expr:            EXPR,
+    estimator:       ScriptEstimator = ScriptEstimatorV2.apply,
+    checkSize:       Boolean = true,
+    checkComplexity: Boolean = true
+  ): Either[String, Script] =
     for {
-      scriptComplexity <- ScriptEstimator(varNames(version, Expression), functionCosts(version), x)
+      scriptComplexity <- estimator(varNames(version, Expression), functionCosts(version), expr)
       _ <- Either.cond(!checkComplexity || scriptComplexity <= MaxComplexityByVersion(version),
                        (),
                        s"Script is too complex: $scriptComplexity > ${MaxComplexityByVersion(version)}")
-      s = new ExprScriptImpl(version, x, scriptComplexity)
+      s = ExprScriptImpl(version, expr, scriptComplexity)
       _ <- if (checkSize) validateBytes(s.bytes().arr) else Right(())
     } yield s
 

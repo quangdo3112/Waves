@@ -6,12 +6,16 @@ import com.wavesplatform.account.{AddressScheme, PublicKey}
 import com.wavesplatform.block.SignerData
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.consensus.nxt.NxtLikeConsensusBlockData
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.protobuf.transaction.{PBTransactions, VanillaTransaction}
 import com.wavesplatform.transaction.TxValidationError.GenericError
 
 object PBBlocks {
-  def vanilla(block: PBBlock, unsafe: Boolean = false): Either[ValidationError, VanillaBlock] = {
+  def vanilla(
+    block:     PBBlock,
+    estimator: ScriptEstimator,
+    unsafe:    Boolean = false
+  ): Either[ValidationError, VanillaBlock] = {
     def create(version: Int,
                timestamp: Long,
                reference: ByteStr,
@@ -25,7 +29,7 @@ object PBBlocks {
 
     for {
       header       <- block.header.toRight(GenericError("No block header"))
-      transactions <- block.transactions.map(PBTransactions.vanilla(_, unsafe)).toVector.sequence
+      transactions <- block.transactions.map(PBTransactions.vanilla(_, unsafe, estimator)).toVector.sequence
       result = create(
         header.version,
         header.timestamp,

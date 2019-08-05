@@ -2,7 +2,7 @@ package com.wavesplatform.protobuf.transaction
 import com.google.protobuf.ByteString
 import com.wavesplatform.account.{Address, AddressScheme, PublicKey}
 import com.wavesplatform.common.state.ByteStr
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.lang.script.ScriptReader
 import com.wavesplatform.protobuf.transaction.Transaction.Data
 import com.wavesplatform.protobuf.transaction.{Script => PBScript}
@@ -33,7 +33,11 @@ object PBTransactions {
     )
   }
 
-  def vanilla(signedTx: PBSignedTransaction, unsafe: Boolean = false): Either[ValidationError, VanillaTransaction] = {
+  def vanilla(
+    signedTx:  PBSignedTransaction,
+    unsafe:    Boolean = false,
+    estimator: ScriptEstimator
+  ): Either[ValidationError, VanillaTransaction] = {
     for {
       parsedTx <- signedTx.transaction.toRight(GenericError("Transaction must be specified"))
       fee      <- parsedTx.fee.toRight(GenericError("Fee must be specified"))
@@ -50,7 +54,8 @@ object PBTransactions {
             feeAmount._1,
             parsedTx.timestamp,
             Proofs(signedTx.proofs.map(bs => ByteStr(bs.toByteArray))),
-            parsedTx.data
+            parsedTx.data,
+            estimator
           ))
       else
         createVanilla(
@@ -61,7 +66,8 @@ object PBTransactions {
           feeAmount._1,
           parsedTx.timestamp,
           Proofs(signedTx.proofs.map(bs => ByteStr(bs.toByteArray))),
-          parsedTx.data
+          parsedTx.data,
+          estimator
         )
     } yield tx
   }
@@ -73,7 +79,9 @@ object PBTransactions {
                                   feeAssetId: VanillaAssetId,
                                   timestamp: Long,
                                   proofs: Proofs,
-                                  data: PBTransaction.Data): Either[ValidationError, VanillaTransaction] = {
+                                  data: PBTransaction.Data,
+                                  estimator: ScriptEstimator
+                                 ): Either[ValidationError, VanillaTransaction] = {
 
     val signature = proofs.toSignature
     val result: Either[ValidationError, VanillaTransaction] = data match {
@@ -168,7 +176,7 @@ object PBTransactions {
               quantity,
               decimals.toByte,
               reissuable,
-              script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray).right.get),
+              script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray, estimator).right.get),
               feeAmount,
               timestamp,
               proofs
@@ -197,7 +205,7 @@ object PBTransactions {
           chainId,
           sender,
           IssuedAsset(assetId),
-          script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray).right.get),
+          script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray, estimator).right.get),
           feeAmount,
           timestamp,
           proofs
@@ -206,7 +214,7 @@ object PBTransactions {
       case Data.SetScript(SetScriptTransactionData(script)) =>
         vt.smart.SetScriptTransaction.create(
           sender,
-          script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray).right.get),
+          script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray, estimator).right.get),
           feeAmount,
           timestamp,
           proofs
@@ -331,7 +339,9 @@ object PBTransactions {
                                         feeAssetId: VanillaAssetId,
                                         timestamp: Long,
                                         proofs: Proofs,
-                                        data: PBTransaction.Data): VanillaTransaction = {
+                                        data: PBTransaction.Data,
+                                        estimator: ScriptEstimator
+                                       ): VanillaTransaction = {
     import com.wavesplatform.common.utils._
 
     val signature = proofs.toSignature
@@ -417,7 +427,7 @@ object PBTransactions {
               quantity,
               decimals.toByte,
               reissuable,
-              script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray).right.get),
+              script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray, estimator).right.get),
               feeAmount,
               timestamp,
               proofs
@@ -446,7 +456,7 @@ object PBTransactions {
           chainId,
           sender,
           IssuedAsset(assetId),
-          script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray).right.get),
+          script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray, estimator).right.get),
           feeAmount,
           timestamp,
           proofs
@@ -456,7 +466,7 @@ object PBTransactions {
         vt.smart.SetScriptTransaction(
           chainId,
           sender,
-          script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray).right.get),
+          script.map(s => ScriptReader.fromBytes(s.bytes.toByteArray, estimator).right.get),
           feeAmount,
           timestamp,
           proofs

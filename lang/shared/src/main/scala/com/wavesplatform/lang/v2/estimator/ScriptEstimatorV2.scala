@@ -10,7 +10,7 @@ import com.wavesplatform.lang.v2.estimator.EstimatorContext.EvalM
 import com.wavesplatform.lang.v2.estimator.EstimatorContext.Lenses._
 import monix.eval.Coeval
 
-object ScriptEstimator {
+object ScriptEstimatorV2 {
   private def evalLetBlock(let: LET, inner: EXPR): EvalM[Long] =
     local {
       val letResult = (false, evalExpr(let.value))
@@ -97,11 +97,11 @@ object ScriptEstimator {
 
   def apply(
     vars:  Set[String],
-    funcs: collection.Map[FunctionHeader, Coeval[Long]],
+    funcs: Map[FunctionHeader, Coeval[Long]],
     expr:  EXPR
   ): Either[ExecutionError, Long] = {
     val v = vars.map((_, (true, const(0)))).toMap
-    val f = funcs.toMap.mapValues(_.value)
+    val f = funcs.mapValues(_.value)
     evalExpr(expr).run(EstimatorContext(v, f)).value._2
   }
 }

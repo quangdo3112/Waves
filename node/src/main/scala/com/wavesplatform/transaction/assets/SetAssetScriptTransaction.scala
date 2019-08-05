@@ -6,7 +6,7 @@ import com.wavesplatform.account._
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto._
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.lang.script.v1.ExprScript
 import com.wavesplatform.serialization.Deser
@@ -97,8 +97,8 @@ object SetAssetScriptTransaction extends TransactionParserFor[SetAssetScriptTran
       unsigned.copy(proofs = Proofs.create(Seq(ByteStr(sign(signer, unsigned.bodyBytes())))).explicitGet())
     }
   }
-  override def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
+  override def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator).deserializeFromByteArray(bytes).flatMap { tx =>
       Either
         .cond(tx.chainId == currentChainId,
               (),
@@ -108,14 +108,18 @@ object SetAssetScriptTransaction extends TransactionParserFor[SetAssetScriptTran
     }
   }
 
-  val byteTailDescription: ByteEntity[SetAssetScriptTransaction] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[SetAssetScriptTransaction] = {
     (
       OneByte(tailIndex(1), "Chain ID"),
       PublicKeyBytes(tailIndex(2), "Sender's public key"),
       ByteStrDefinedLength(tailIndex(3), "Asset ID", AssetIdLength),
       LongBytes(tailIndex(4), "Fee"),
       LongBytes(tailIndex(5), "Timestamp"),
-      OptionBytes(index = tailIndex(6), name = "Script", nestedByteEntity = ScriptBytes(tailIndex(6), "Script")),
+      OptionBytes(
+        index = tailIndex(6),
+        name = "Script",
+        nestedByteEntity = ScriptBytes(tailIndex(6), "Script", estimator)
+      ),
       ProofsBytes(tailIndex(7))
     ) mapN {
       case (chainId, sender, assetId, fee, timestamp, script, proofs) =>

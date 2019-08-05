@@ -13,6 +13,7 @@ import com.wavesplatform.common.utils._
 import com.wavesplatform.database.patch.DisableHijackedAliases
 import com.wavesplatform.features.BlockchainFeatures
 import com.wavesplatform.features.FeatureProvider._
+import com.wavesplatform.features.EstimatorProvider._
 import com.wavesplatform.lang.ValidationError
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.settings.{BlockchainSettings, DBSettings, FunctionalitySettings, GenesisSettings}
@@ -106,18 +107,18 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
 
   override protected def loadScript(address: Address): Option[Script] = readOnly { db =>
     addressId(address).fold(Option.empty[Script]) { addressId =>
-      db.fromHistory(Keys.addressScriptHistory(addressId), Keys.addressScript(addressId)).flatten
+      db.fromHistory(Keys.addressScriptHistory(addressId), Keys.addressScript(addressId, this.estimator())).flatten
     }
   }
 
   override protected def hasScriptBytes(address: Address): Boolean = readOnly { db =>
     addressId(address).fold(false) { addressId =>
-      db.hasInHistory(Keys.addressScriptHistory(addressId), Keys.addressScript(addressId))
+      db.hasInHistory(Keys.addressScriptHistory(addressId), Keys.addressScript(addressId, this.estimator()))
     }
   }
 
   override protected def loadAssetScript(asset: IssuedAsset): Option[Script] = readOnly { db =>
-    db.fromHistory(Keys.assetScriptHistory(asset), Keys.assetScript(asset)).flatten
+    db.fromHistory(Keys.assetScriptHistory(asset), Keys.assetScript(asset, this.estimator())).flatten
   }
 
   override protected def hasAssetScriptBytes(asset: IssuedAsset): Boolean = readOnly { db =>
@@ -201,7 +202,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
       case Some((_, i: IssueTransaction)) =>
         val ai          = db.fromHistory(Keys.assetInfoHistory(asset), Keys.assetInfo(asset)).getOrElse(AssetInfo(i.reissuable, i.quantity))
         val sponsorship = db.fromHistory(Keys.sponsorshipHistory(asset), Keys.sponsorship(asset)).fold(0L)(_.minFee)
-        val script      = db.fromHistory(Keys.assetScriptHistory(asset), Keys.assetScript(asset)).flatten
+        val script      = db.fromHistory(Keys.assetScriptHistory(asset), Keys.assetScript(asset, this.estimator())).flatten
         Some(AssetDescription(i.sender, i.name, i.description, i.decimals, ai.isReissuable, ai.volume, script, sponsorship))
       case _ => None
     }
@@ -353,13 +354,13 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
     }
 
     for ((addressId, script) <- scripts) {
-      expiredKeys ++= updateHistory(rw, Keys.addressScriptHistory(addressId), threshold, Keys.addressScript(addressId))
-      script.foreach(s => rw.put(Keys.addressScript(addressId)(height), Some(s)))
+      expiredKeys ++= updateHistory(rw, Keys.addressScriptHistory(addressId), threshold, Keys.addressScript(addressId, this.estimator()))
+      script.foreach(s => rw.put(Keys.addressScript(addressId, this.estimator())(height), Some(s)))
     }
 
     for ((asset, script) <- assetScripts) {
-      expiredKeys ++= updateHistory(rw, Keys.assetScriptHistory(asset), threshold, Keys.assetScript(asset))
-      script.foreach(s => rw.put(Keys.assetScript(asset)(height), Some(s)))
+      expiredKeys ++= updateHistory(rw, Keys.assetScriptHistory(asset), threshold, Keys.assetScript(asset, this.estimator()))
+      script.foreach(s => rw.put(Keys.assetScript(asset, this.estimator())(height), Some(s)))
     }
 
     for ((addressId, addressData) <- data) {
@@ -400,7 +401,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
     }
 
     for ((id, (tx, num)) <- transactions) {
-      rw.put(Keys.transactionAt(Height(height), num), Some(tx))
+      rw.put(Keys.transactionAt(Height(height), num, this.estimator()), Some(tx))
       rw.put(Keys.transactionHNById(id), Some((Height(height), num)))
     }
 
@@ -446,7 +447,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
     expiredKeys.foreach(rw.delete(_, "expired-keys"))
 
     if (activatedFeatures.get(BlockchainFeatures.DataTransaction.id).contains(height)) {
-      DisableHijackedAliases(rw)
+      DisableHijackedAliases(rw, this.estimator())
     }
   }
 
@@ -543,14 +544,14 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
                   val address = tx.sender.toAddress
                   scriptsToDiscard += address
                   for (addressId <- addressId(address)) {
-                    rw.delete(Keys.addressScript(addressId)(currentHeight))
+                    rw.delete(Keys.addressScript(addressId, this.estimator())(currentHeight))
                     rw.filterHistory(Keys.addressScriptHistory(addressId), currentHeight)
                   }
 
                 case tx: SetAssetScriptTransaction =>
                   val asset = tx.asset
                   assetScriptsToDiscard += asset
-                  rw.delete(Keys.assetScript(asset)(currentHeight))
+                  rw.delete(Keys.assetScript(asset, this.estimator())(currentHeight))
                   rw.filterHistory(Keys.assetScriptHistory(asset), currentHeight)
 
                 case _: DataTransaction => // see changed data keys removal
@@ -565,7 +566,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
               }
 
               if (tx.builder.typeId != GenesisTransaction.typeId) {
-                rw.delete(Keys.transactionAt(h, num))
+                rw.delete(Keys.transactionAt(h, num, this.estimator()))
                 rw.delete(Keys.transactionHNById(TransactionId(tx.id())))
               }
           }
@@ -640,7 +641,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
 
         if (isTransfer)
           TransactionParsers
-            .parseBytes(txBytes)
+            .parseBytes(txBytes, this.estimator())
             .collect {
               case ttx: TransferTransaction => (height, ttx)
             }
@@ -656,7 +657,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
     val txId = TransactionId(id)
     for {
       (height, num) <- db.get(Keys.transactionHNById(txId))
-      tx            <- db.get(Keys.transactionAt(height, num))
+      tx            <- db.get(Keys.transactionAt(height, num, this.estimator()))
     } yield (height, tx)
   }
 
@@ -723,7 +724,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
           })
 
         takeAfter(takeTypes(heightNumStream, types.map(_.typeId)), maybeAfter)
-          .flatMap { case (height, _, txNum) => db.get(Keys.transactionAt(height, txNum)).map((height, txNum, _)) }
+          .flatMap { case (height, _, txNum) => db.get(Keys.transactionAt(height, txNum, this.estimator())).map((height, txNum, _)) }
       } else {
         def takeAfter(txNums: Iterator[(Height, TxNum, Transaction)], maybeAfter: Option[(Height, TxNum)]) = maybeAfter match {
           case None => txNums
@@ -828,7 +829,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
         val height = Height(Ints.fromByteArray(heightNumBytes.take(4)))
         val txNum  = TxNum(Shorts.fromByteArray(heightNumBytes.takeRight(2)))
 
-        db.get(Keys.transactionAt(height, txNum))
+        db.get(Keys.transactionAt(height, txNum, this.estimator()))
           .collect { case lt: LeaseTransaction => lt }
       } else None
     }
@@ -1108,10 +1109,10 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
             db.get(Keys.transactionBytesAt(height, txNum))
               .flatMap { txBytes =>
                 if (ofTypes.isEmpty)
-                  TransactionParsers.parseBytes(txBytes).toOption
+                  TransactionParsers.parseBytes(txBytes, this.estimator()).toOption
                 else {
                   ofTypes.iterator
-                    .map(_.parseBytes(txBytes))
+                    .map(_.parseBytes(txBytes, this.estimator()))
                     .collectFirst { case Success(tx) => tx }
                 }
               }
@@ -1129,7 +1130,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
     for {
       (header, _) <- db.get(headerKey)
       txs = (0 until header.transactionCount).toList.flatMap { n =>
-        db.get(Keys.transactionAt(height, TxNum(n.toShort)))
+        db.get(Keys.transactionAt(height, TxNum(n.toShort), this.estimator()))
       }
       block <- Block.fromHeaderAndTransactions(header, txs).toOption
     } yield block
@@ -1150,7 +1151,7 @@ class LevelDBWriter(writableDB: DB, spendableBalanceChanged: Observer[(Address, 
 
       for {
         idx <- Try(Shorts.fromByteArray(k.slice(6, 8)))
-        tx  <- TransactionParsers.parseBytes(v)
+        tx  <- TransactionParsers.parseBytes(v, this.estimator())
       } txs.append((TxNum(idx), tx))
     }
 

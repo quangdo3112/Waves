@@ -6,7 +6,7 @@ import com.wavesplatform.account.{AddressScheme, KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction.TxValidationError.GenericError
 import com.wavesplatform.transaction._
@@ -49,8 +49,8 @@ object ReissueTransactionV2 extends TransactionParserFor[ReissueTransactionV2] w
   override def supportedVersions: Set[Byte] = Set(2)
   private def currentChainId: Byte          = AddressScheme.current.chainId
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator).deserializeFromByteArray(bytes).flatMap { tx =>
       Either
         .cond(tx.chainId == currentChainId, (), GenericError(s"Wrong chainId actual: ${tx.chainId.toInt}, expected: $currentChainId"))
         .flatMap(_ => ReissueTransaction.validateReissueParams(tx))
@@ -97,7 +97,7 @@ object ReissueTransactionV2 extends TransactionParserFor[ReissueTransactionV2] w
     signed(chainId, sender, asset, quantity, reissuable, fee, timestamp, sender)
   }
 
-  val byteTailDescription: ByteEntity[ReissueTransactionV2] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[ReissueTransactionV2] = {
     (
       OneByte(tailIndex(1), "Chain ID"),
       PublicKeyBytes(tailIndex(2), "Sender's public key"),

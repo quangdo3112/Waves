@@ -36,10 +36,6 @@ trait PBImplicitConversions {
     def toPB = PBBlocks.protobuf(block)
   }
 
-  implicit class PBBlockConversions(block: PBBlock) {
-    def toVanilla = PBBlocks.vanilla(block).explicitGet()
-  }
-
   implicit class PBBlockHeaderConversionOps(header: PBBlock.Header) {
     def toVanilla(signature: ByteStr): vb.BlockHeader = {
       new vb.BlockHeader(

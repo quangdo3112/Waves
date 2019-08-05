@@ -6,7 +6,7 @@ import com.wavesplatform.account.Address
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction.TransactionParsers._
 import com.wavesplatform.transaction.description.{AddressBytes, ByteEntity, LongBytes}
@@ -68,16 +68,18 @@ object GenesisTransaction extends TransactionParserFor[GenesisTransaction] with 
     Bytes.concat(h, h)
   }
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
     Try {
 
       require(bytes.length >= BASE_LENGTH, "Data does not match base length")
 
-      byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-        Either
-          .cond(tx.amount >= 0, tx, TxValidationError.NegativeAmount(tx.amount, "waves"))
-          .foldToTry
-      }
+      byteTailDescription(estimator)
+        .deserializeFromByteArray(bytes)
+        .flatMap { tx =>
+          Either
+            .cond(tx.amount >= 0, tx, TxValidationError.NegativeAmount(tx.amount, "waves"))
+            .foldToTry
+        }
     }.flatten
   }
 
@@ -90,7 +92,7 @@ object GenesisTransaction extends TransactionParserFor[GenesisTransaction] with 
     }
   }
 
-  val byteTailDescription: ByteEntity[GenesisTransaction] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[GenesisTransaction] = {
     (
       LongBytes(tailIndex(1), "Timestamp"),
       AddressBytes(tailIndex(2), "Recipient's address"),

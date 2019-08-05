@@ -6,7 +6,7 @@ import com.wavesplatform.account.{AddressOrAlias, KeyPair, PrivateKey, PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.description._
 import monix.eval.Coeval
@@ -29,8 +29,8 @@ object LeaseTransactionV1 extends TransactionParserFor[LeaseTransactionV1] with 
 
   override val typeId: Byte = LeaseTransaction.typeId
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator).deserializeFromByteArray(bytes).flatMap { tx =>
       LeaseTransaction
         .validateLeaseParams(tx)
         .map(_ => tx)
@@ -64,7 +64,7 @@ object LeaseTransactionV1 extends TransactionParserFor[LeaseTransactionV1] with 
     signed(sender, amount, fee, timestamp, recipient, sender)
   }
 
-  val byteTailDescription: ByteEntity[LeaseTransactionV1] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[LeaseTransactionV1] = {
     (
       PublicKeyBytes(tailIndex(1), "Sender's public key"),
       AddressOrAliasBytes(tailIndex(2), "Recipient"),

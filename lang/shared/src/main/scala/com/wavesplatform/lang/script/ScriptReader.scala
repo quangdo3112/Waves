@@ -1,4 +1,5 @@
 package com.wavesplatform.lang.script
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.lang.ValidationError.ScriptParseError
 import com.wavesplatform.lang.contract.ContractSerDe
 import com.wavesplatform.lang.directives.DirectiveDictionary
@@ -12,7 +13,11 @@ object ScriptReader {
 
   val checksumLength = 4
 
-  def fromBytes(bytes: Array[Byte], checkComplexity: Boolean = true): Either[ScriptParseError, Script] = {
+  def fromBytes(
+    bytes:           Array[Byte],
+    estimator:       ScriptEstimator,
+    checkComplexity: Boolean = true
+  ): Either[ScriptParseError, Script] = {
     val checkSum          = bytes.takeRight(checksumLength)
     val computedCheckSum  = Global.secureHash(bytes.dropRight(checksumLength)).take(checksumLength)
 
@@ -48,12 +53,12 @@ object ScriptReader {
               Right(())
             }
             bytes <- Serde.deserialize(scriptBytes).map(_._1)
-            s     <- ExprScript(stdLibVersion, bytes, checkSize = false, checkComplexity = checkComplexity)
+            s     <- ExprScript(stdLibVersion, bytes, estimator, checkSize = false, checkComplexity)
           } yield s
         case DApp =>
           for {
             dapp <- ContractSerDe.deserialize(scriptBytes)
-            s    <- ContractScript(stdLibVersion, dapp)
+            s    <- ContractScript(stdLibVersion, dapp, estimator)
           } yield s
       }
     } yield s).left

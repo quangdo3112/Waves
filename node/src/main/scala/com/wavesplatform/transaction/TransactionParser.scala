@@ -1,6 +1,7 @@
 package com.wavesplatform.transaction
 
 import cats.implicits._
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.transaction.description.{ByteEntity, ConstantByte, OneByte}
 
 import scala.reflect.ClassTag
@@ -14,12 +15,12 @@ trait TransactionParser {
   def typeId: Byte
   def supportedVersions: Set[Byte]
 
-  def parseBytes(bytes: Array[Byte]): Try[TransactionT] =
-    parseHeader(bytes) flatMap (offset => parseTail(bytes drop offset))
+  def parseBytes(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] =
+    parseHeader(bytes) flatMap (offset => parseTail(bytes drop offset, estimator))
 
   /** @return offset */
   protected def parseHeader(bytes: Array[Byte]): Try[Int]
-  protected def parseTail(bytes: Array[Byte]): Try[TransactionT]
+  protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT]
 
   /** Byte description of the header of the transaction */
   val byteHeaderDescription: ByteEntity[Unit]
@@ -29,7 +30,7 @@ trait TransactionParser {
     *
     * Implementation example:
     * {{{
-    *   val bytesTailDescription: ByteEntity[Transaction] =
+    *   def bytesTailDescription(estimator: ScriptEstimator): ByteEntity[Transaction] =
     *   (
     *     OneByte(1, "Transaction type"),
     *     OneByte(2, "Version"),
@@ -37,10 +38,10 @@ trait TransactionParser {
     *   ) mapN { case (txType, version, fee) => Transaction(txType, version, fee) }
     *
     *   // deserialization from buf: Array[Byte]
-    *   val tx: Try[Transaction] = byteTailDescription.deserializeFromByteArray(buf)
+    *   val tx: Try[Transaction] = byteTailDescription(estimator).deserializeFromByteArray(buf)
     * }}}
     */
-  val byteTailDescription: ByteEntity[TransactionT]
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[TransactionT]
 
   /**
     * Returns index of byte entity in `byteTailDescription`
@@ -54,10 +55,11 @@ trait TransactionParser {
     * Usage example:
     * {{{
     *   // generation of the documentation
-    *   val txStringDocumentationForMD: String = byteDescription.getStringDocForMD
+    *   val txStringDocumentationForMD: String = byteDescription(estimator).getStringDocForMD
     * }}}
     */
-  lazy val byteDescription: ByteEntity[TransactionT] = (byteHeaderDescription, byteTailDescription) mapN { case (_, tx) => tx }
+  def byteDescription(estimator: ScriptEstimator): ByteEntity[TransactionT] =
+    (byteHeaderDescription, byteTailDescription(estimator)) mapN { case (_, tx) => tx }
 }
 
 object TransactionParser {

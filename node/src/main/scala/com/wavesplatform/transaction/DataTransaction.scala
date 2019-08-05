@@ -6,7 +6,7 @@ import com.wavesplatform.account.{KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.state._
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction.description._
@@ -56,8 +56,8 @@ object DataTransaction extends TransactionParserFor[DataTransaction] with Transa
   val MaxBytes      = 150 * 1024 // implicitly used for RIDE CONST_STRING and CONST_BYTESTR
   val MaxEntryCount = 100
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
       .deserializeFromByteArray(bytes)
       .flatMap(
         validateTxContent(_, Some(bytes.length)).foldToTry
@@ -98,7 +98,7 @@ object DataTransaction extends TransactionParserFor[DataTransaction] with Transa
     signed(sender, data, feeAmount, timestamp, sender)
   }
 
-  val byteTailDescription: ByteEntity[DataTransaction] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[DataTransaction] = {
     (
       PublicKeyBytes(tailIndex(1), "Sender's public key"),
       ListDataEntryBytes(tailIndex(2)),

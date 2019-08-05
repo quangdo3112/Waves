@@ -11,7 +11,7 @@ import com.wavesplatform.api.http.{DataRequest, InvokeScriptRequest, SignedDataR
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.Base58
 import com.wavesplatform.crypto.SignatureLength
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction.TxValidationError.GenericError
@@ -138,16 +138,27 @@ object TransactionFactory {
       )
     } yield tx
 
-  def setScript(request: SetScriptRequest, wallet: Wallet, time: Time): Either[ValidationError, SetScriptTransaction] =
-    setScript(request, wallet, request.sender, time)
+  def setScript(
+    request:   SetScriptRequest,
+    wallet:    Wallet,
+    time:      Time,
+    estimator: ScriptEstimator
+  ): Either[ValidationError, SetScriptTransaction] =
+    setScript(request, wallet, request.sender, time, estimator)
 
-  def setScript(request: SetScriptRequest, wallet: Wallet, signerAddress: String, time: Time): Either[ValidationError, SetScriptTransaction] =
+  def setScript(
+    request:       SetScriptRequest,
+    wallet:        Wallet,
+    signerAddress: String,
+    time:          Time,
+    estimator:     ScriptEstimator
+  ): Either[ValidationError, SetScriptTransaction] =
     for {
       sender <- wallet.findPrivateKey(request.sender)
       signer <- if (request.sender == signerAddress) Right(sender) else wallet.findPrivateKey(signerAddress)
       script <- request.script match {
         case None | Some("") => Right(None)
-        case Some(s)         => Script.fromBase64String(s).map(Some(_))
+        case Some(s)         => Script.fromBase64String(s, estimator).map(Some(_))
       }
       tx <- SetScriptTransaction.signed(
         sender,
@@ -158,11 +169,15 @@ object TransactionFactory {
       )
     } yield tx
 
-  def setScript(request: SetScriptRequest, sender: PublicKey): Either[ValidationError, SetScriptTransaction] =
+  def setScript(
+    request:   SetScriptRequest,
+    sender:    PublicKey,
+    estimator: ScriptEstimator
+  ): Either[ValidationError, SetScriptTransaction] =
     for {
       script <- request.script match {
         case None | Some("") => Right(None)
-        case Some(s)         => Script.fromBase64String(s).map(Some(_))
+        case Some(s)         => Script.fromBase64String(s, estimator).map(Some(_))
       }
       tx <- SetScriptTransaction.create(
         sender,
@@ -173,16 +188,19 @@ object TransactionFactory {
       )
     } yield tx
 
-  def setAssetScript(request: SetAssetScriptRequest,
-                     wallet: Wallet,
-                     signerAddress: String,
-                     time: Time): Either[ValidationError, SetAssetScriptTransaction] =
+  def setAssetScript(
+     request:       SetAssetScriptRequest,
+     wallet:        Wallet,
+     signerAddress: String,
+     time:          Time,
+     estimator:     ScriptEstimator
+  ): Either[ValidationError, SetAssetScriptTransaction] =
     for {
       sender <- wallet.findPrivateKey(request.sender)
       signer <- if (request.sender == signerAddress) Right(sender) else wallet.findPrivateKey(signerAddress)
       script <- request.script match {
         case None | Some("") => Right(None)
-        case Some(s)         => Script.fromBase64String(s).map(Some(_))
+        case Some(s)         => Script.fromBase64String(s, estimator).map(Some(_))
       }
       tx <- SetAssetScriptTransaction.signed(
         AddressScheme.current.chainId,
@@ -195,11 +213,15 @@ object TransactionFactory {
       )
     } yield tx
 
-  def setAssetScript(request: SetAssetScriptRequest, sender: PublicKey): Either[ValidationError, SetAssetScriptTransaction] =
+  def setAssetScript(
+    request:   SetAssetScriptRequest,
+    sender:    PublicKey,
+    estimator: ScriptEstimator
+  ): Either[ValidationError, SetAssetScriptTransaction] =
     for {
       script <- request.script match {
         case None | Some("") => Right(None)
-        case Some(s)         => Script.fromBase64String(s).map(Some(_))
+        case Some(s)         => Script.fromBase64String(s, estimator).map(Some(_))
       }
       tx <- SetAssetScriptTransaction.create(
         AddressScheme.current.chainId,
@@ -212,16 +234,27 @@ object TransactionFactory {
       )
     } yield tx
 
-  def issueAssetV2(request: IssueV2Request, wallet: Wallet, time: Time): Either[ValidationError, IssueTransactionV2] =
-    issueAssetV2(request, wallet, request.sender, time)
+  def issueAssetV2(
+     request:   IssueV2Request,
+     wallet:    Wallet,
+     time:      Time,
+     estimator: ScriptEstimator
+  ): Either[ValidationError, IssueTransactionV2] =
+    issueAssetV2(request, wallet, request.sender, time, estimator)
 
-  def issueAssetV2(request: IssueV2Request, wallet: Wallet, signerAddress: String, time: Time): Either[ValidationError, IssueTransactionV2] =
+  def issueAssetV2(
+    request:       IssueV2Request,
+    wallet:        Wallet,
+    signerAddress: String,
+    time:          Time,
+    estimator:     ScriptEstimator
+  ): Either[ValidationError, IssueTransactionV2] =
     for {
       sender <- wallet.findPrivateKey(request.sender)
       signer <- if (request.sender == signerAddress) Right(sender) else wallet.findPrivateKey(signerAddress)
       s <- request.script match {
         case None    => Right(None)
-        case Some(s) => Script.fromBase64String(s).map(Some(_))
+        case Some(s) => Script.fromBase64String(s, estimator).map(Some(_))
       }
       tx <- IssueTransactionV2.signed(
         chainId = AddressScheme.current.chainId,
@@ -238,11 +271,15 @@ object TransactionFactory {
       )
     } yield tx
 
-  def issueAssetV2(request: IssueV2Request, sender: PublicKey): Either[ValidationError, IssueTransactionV2] =
+  def issueAssetV2(
+    request:   IssueV2Request,
+    sender:    PublicKey,
+    estimator: ScriptEstimator
+  ): Either[ValidationError, IssueTransactionV2] =
     for {
       s <- request.script match {
         case None    => Right(None)
-        case Some(s) => Script.fromBase64String(s).map(Some(_))
+        case Some(s) => Script.fromBase64String(s, estimator).map(Some(_))
       }
       tx <- IssueTransactionV2.create(
         chainId = AddressScheme.current.chainId,
@@ -738,7 +775,7 @@ object TransactionFactory {
     } yield tx
   }
 
-  def fromSignedRequest(jsv: JsValue): Either[ValidationError, Transaction] = {
+  def fromSignedRequest(jsv: JsValue, estimator: ScriptEstimator): Either[ValidationError, Transaction] = {
     import InvokeScriptRequest._
     val chainId = (jsv \ "chainId").asOpt[Byte]
     val typeId  = (jsv \ "type").as[Byte]
@@ -746,7 +783,7 @@ object TransactionFactory {
 
     val pf: PartialFunction[TransactionParser, Either[ValidationError, Transaction]] = {
       case IssueTransactionV1        => jsv.as[SignedIssueV1Request].toTx
-      case IssueTransactionV2        => jsv.as[SignedIssueV2Request].toTx
+      case IssueTransactionV2        => jsv.as[SignedIssueV2Request].toTx(estimator)
       case TransferTransactionV1     => jsv.as[SignedTransferV1Request].toTx
       case TransferTransactionV2     => jsv.as[SignedTransferV2Request].toTx
       case MassTransferTransaction   => jsv.as[SignedMassTransferRequest].toTx
@@ -762,8 +799,8 @@ object TransactionFactory {
       case CreateAliasTransactionV2  => jsv.as[SignedCreateAliasV2Request].toTx
       case DataTransaction           => jsv.as[SignedDataRequest].toTx
       case InvokeScriptTransaction   => jsv.as[SignedInvokeScriptRequest].toTx
-      case SetScriptTransaction      => jsv.as[SignedSetScriptRequest].toTx
-      case SetAssetScriptTransaction => jsv.as[SignedSetAssetScriptRequest].toTx
+      case SetScriptTransaction      => jsv.as[SignedSetScriptRequest].toTx(estimator)
+      case SetAssetScriptTransaction => jsv.as[SignedSetAssetScriptRequest].toTx(estimator)
       case SponsorFeeTransaction     => jsv.as[SignedSponsorFeeRequest].toTx
       case ExchangeTransactionV1     => jsv.as[SignedExchangeRequest].toTx
       case ExchangeTransactionV2     => jsv.as[SignedExchangeRequestV2].toTx
@@ -777,7 +814,13 @@ object TransactionFactory {
     }
   }
 
-  def parseRequestAndSign(wallet: Wallet, signerAddress: String, time: Time, jsv: JsObject): Either[ValidationError, Transaction] = {
+  def parseRequestAndSign(
+    wallet:        Wallet,
+    signerAddress: String,
+    time:          Time,
+    jsv:           JsObject,
+    estimator:     ScriptEstimator
+  ): Either[ValidationError, Transaction] = {
     import play.api.libs.json._
 
     val typeId = (jsv \ "type").as[Byte]
@@ -794,7 +837,7 @@ object TransactionFactory {
           case Some(x) =>
             x match {
               case IssueTransactionV1       => TransactionFactory.issueAssetV1(txJson.as[IssueV1Request], wallet, signerAddress, time)
-              case IssueTransactionV2       => TransactionFactory.issueAssetV2(txJson.as[IssueV2Request], wallet, signerAddress, time)
+              case IssueTransactionV2       => TransactionFactory.issueAssetV2(txJson.as[IssueV2Request], wallet, signerAddress, time, estimator)
               case TransferTransactionV1    => TransactionFactory.transferAssetV1(txJson.as[TransferV1Request], wallet, signerAddress, time)
               case TransferTransactionV2    => TransactionFactory.transferAssetV2(txJson.as[TransferV2Request], wallet, signerAddress, time)
               case ReissueTransactionV1     => TransactionFactory.reissueAssetV1(txJson.as[ReissueV1Request], wallet, signerAddress, time)
@@ -811,8 +854,8 @@ object TransactionFactory {
               case DataTransaction          => TransactionFactory.data(txJson.as[DataRequest], wallet, signerAddress, time)
               case InvokeScriptTransaction =>
                 TransactionFactory.invokeScript(txJson.as[InvokeScriptRequest], wallet, signerAddress, time)
-              case SetScriptTransaction      => TransactionFactory.setScript(txJson.as[SetScriptRequest], wallet, signerAddress, time)
-              case SetAssetScriptTransaction => TransactionFactory.setAssetScript(txJson.as[SetAssetScriptRequest], wallet, signerAddress, time)
+              case SetScriptTransaction      => TransactionFactory.setScript(txJson.as[SetScriptRequest], wallet, signerAddress, time, estimator)
+              case SetAssetScriptTransaction => TransactionFactory.setAssetScript(txJson.as[SetAssetScriptRequest], wallet, signerAddress, time, estimator)
               case SponsorFeeTransaction     => TransactionFactory.sponsor(txJson.as[SponsorFeeRequest], wallet, signerAddress, time)
               case _                         => Left(TxValidationError.UnsupportedTransactionType)
             }

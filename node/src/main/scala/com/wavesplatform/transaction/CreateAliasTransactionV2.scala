@@ -6,7 +6,7 @@ import com.wavesplatform.account.{Alias, KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.description._
 import monix.eval.Coeval
 
@@ -29,12 +29,14 @@ object CreateAliasTransactionV2 extends TransactionParserFor[CreateAliasTransact
 
   override def supportedVersions: Set[Byte] = Set(2)
 
-  override protected def parseTail(bytes: Array[Byte]): Try[CreateAliasTransactionV2] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      Either
-        .cond(tx.fee > 0, tx, TxValidationError.InsufficientFee)
-        .foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[CreateAliasTransactionV2] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        Either
+          .cond(tx.fee > 0, tx, TxValidationError.InsufficientFee)
+          .foldToTry
+      }
   }
 
   def create(sender: PublicKey, alias: Alias, fee: Long, timestamp: Long, proofs: Proofs): Either[ValidationError, CreateAliasTransactionV2] = {
@@ -56,7 +58,7 @@ object CreateAliasTransactionV2 extends TransactionParserFor[CreateAliasTransact
     signed(sender, alias, fee, timestamp, sender)
   }
 
-  val byteTailDescription: ByteEntity[CreateAliasTransactionV2] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[CreateAliasTransactionV2] = {
     (
       PublicKeyBytes(tailIndex(1), "Sender's public key"),
       AliasBytes(tailIndex(2), "Alias object"),

@@ -5,6 +5,7 @@ import com.wavesplatform.account.Address
 import com.wavesplatform.api.common.CommonTransactionsApi
 import com.wavesplatform.api.http.ApiError._
 import com.wavesplatform.common.state.ByteStr
+import com.wavesplatform.features.EstimatorProvider._
 import com.wavesplatform.http.BroadcastRoute
 import com.wavesplatform.protobuf.transaction.VanillaTransaction
 import com.wavesplatform.settings.RestAPISettings
@@ -140,7 +141,7 @@ case class TransactionsApiRoute(settings: RestAPISettings, wallet: Wallet, block
             "sender" -> senderPk
           )
 
-          createTransaction(senderPk, enrichedJsv) { tx =>
+          createTransaction(senderPk, enrichedJsv, blockchain.estimator()) { tx =>
             commonApi
               .calculateFee(tx)
               .map { case (assetId, assetAmount, _) => Json.obj("feeAssetId" -> assetId, "feeAmount" -> assetAmount) }
@@ -164,7 +165,7 @@ case class TransactionsApiRoute(settings: RestAPISettings, wallet: Wallet, block
     pathEndOrSingleSlash {
       handleExceptions(jsonExceptionHandler) {
         json[JsObject] { jsv =>
-          TransactionFactory.parseRequestAndSign(wallet, (jsv \ "sender").as[String], time, jsv)
+          TransactionFactory.parseRequestAndSign(wallet, (jsv \ "sender").as[String], time, jsv, blockchain.estimator())
         }
       }
     } ~ signWithSigner
@@ -186,7 +187,7 @@ case class TransactionsApiRoute(settings: RestAPISettings, wallet: Wallet, block
                            value = "Transaction data including <a href='transaction-types.html'>type</a>")
     ))
   def signWithSigner: Route = (pathPrefix(Segment) & handleExceptions(jsonExceptionHandler) & jsonEntity[JsObject]) { (signerAddress, jsv) =>
-    val result = TransactionFactory.parseRequestAndSign(wallet, signerAddress, time, jsv)
+    val result = TransactionFactory.parseRequestAndSign(wallet, signerAddress, time, jsv, blockchain.estimator())
     complete(result)
   }
 
@@ -206,7 +207,7 @@ case class TransactionsApiRoute(settings: RestAPISettings, wallet: Wallet, block
     (pathPrefix("broadcast") & post) {
       (handleExceptions(jsonExceptionHandler) & jsonEntity[JsObject]) { transactionJson =>
         val result: TracedResult[ApiError, VanillaTransaction] =
-          TracedResult(TransactionFactory.fromSignedRequest(transactionJson))
+          TracedResult(TransactionFactory.fromSignedRequest(transactionJson, blockchain.estimator()))
             .flatMap(commonApi.broadcastTransaction)
             .leftMap(ApiError.fromValidationError)
 

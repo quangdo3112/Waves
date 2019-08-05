@@ -6,7 +6,7 @@ import com.wavesplatform.account.{KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.crypto
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.description._
@@ -31,13 +31,15 @@ object BurnTransactionV1 extends TransactionParserFor[BurnTransactionV1] with Tr
 
   override val typeId: Byte = BurnTransaction.typeId
 
-  override protected def parseTail(bytes: Array[Byte]): Try[TransactionT] = {
-    byteTailDescription.deserializeFromByteArray(bytes).flatMap { tx =>
-      BurnTransaction
-        .validateBurnParams(tx)
-        .map(_ => tx)
-        .foldToTry
-    }
+  override protected def parseTail(bytes: Array[Byte], estimator: ScriptEstimator): Try[TransactionT] = {
+    byteTailDescription(estimator)
+      .deserializeFromByteArray(bytes)
+      .flatMap { tx =>
+        BurnTransaction
+          .validateBurnParams(tx)
+          .map(_ => tx)
+          .foldToTry
+      }
   }
 
   def create(sender: PublicKey,
@@ -66,7 +68,7 @@ object BurnTransactionV1 extends TransactionParserFor[BurnTransactionV1] with Tr
     signed(sender, asset, quantity, fee, timestamp, sender)
   }
 
-  val byteTailDescription: ByteEntity[BurnTransactionV1] = {
+  def byteTailDescription(estimator: ScriptEstimator): ByteEntity[BurnTransactionV1] = {
     (
       PublicKeyBytes(tailIndex(1), "Sender's public key"),
       ByteStrDefinedLength(tailIndex(2), "Asset ID", AssetIdLength).map(IssuedAsset),

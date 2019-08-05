@@ -7,7 +7,10 @@ import java.nio.file.{Files, Paths}
 import com.google.common.io.ByteStreams
 import com.wavesplatform.account.{KeyPair, PrivateKey, PublicKey}
 import com.wavesplatform.common.utils.{Base58, Base64, FastBase58}
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.lang.script.{Script, ScriptReader}
+import com.wavesplatform.lang.v1.ScriptEstimatorV1
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.TransactionFactory
 import com.wavesplatform.transaction.smart.script.ScriptCompiler
 import com.wavesplatform.wallet.Wallet
@@ -35,6 +38,7 @@ object UtilApp {
   case class VerifyOptions(publicKey: PublicKey = null, signature: Array[Byte] = Array.emptyByteArray)
   case class HashOptions(mode: String = "fast")
   case class SignTxOptions(signerAddress: String = "")
+  case class EstimatorOptions(estimator: ScriptEstimator = ScriptEstimatorV2.apply)
 
   sealed trait Input
   object Input {
@@ -191,23 +195,16 @@ object UtilApp {
     )
   }
 
-  //noinspection TypeAnnotation
-  private[this] final class NodeState(c: Command) {
-    lazy val settings = Application.loadApplicationConfig(c.configFile.map(new File(_)))
-    lazy val wallet   = Wallet(settings.walletSettings)
-    lazy val time     = new NTP(settings.ntpServer)
-  }
-
   private[this] object Actions {
     type ActionResult = Either[String, Array[Byte]]
 
     //noinspection ScalaDeprecation
     def doCompile(c: Command, str: Array[Byte]): ActionResult =
-      ScriptCompiler(new String(str), c.compileOptions.assetScript)
+      ScriptCompiler(new String(str), c.compileOptions.assetScript, NodeState(c).estimator)
         .map(_._1.bytes())
 
     def doDecompile(c: Command, data: Array[Byte]): ActionResult = {
-      ScriptReader.fromBytes(data, checkComplexity = false) match {
+      ScriptReader.fromBytes(data, NodeState(c).estimator, checkComplexity = false) match {
         case Left(value) =>
           Left(value.m)
         case Right(value) =>
@@ -238,18 +235,37 @@ object UtilApp {
     def doSerializeTx(c: Command, data: Array[Byte]): ActionResult = {
       val jsv = Json.parse(data)
       TransactionFactory
-        .fromSignedRequest(jsv)
+        .fromSignedRequest(jsv, NodeState(c).estimator)
         .left
         .map(_.toString)
         .map(_.bytes())
     }
 
     def doSignTx(ns: NodeState)(c: Command, data: Array[Byte]): ActionResult =
-      TransactionFactory
-        .parseRequestAndSign(ns.wallet, c.signTxOptions.signerAddress, ns.time, Json.parse(data).as[JsObject])
+      TransactionFactory.parseRequestAndSign(
+          ns.wallet,
+          c.signTxOptions.signerAddress,
+          ns.time,
+          Json.parse(data).as[JsObject],
+          NodeState(c).estimator
+        )
         .left
         .map(_.toString)
         .map(tx => Json.toBytes(tx.json()))
+  }
+
+  //noinspection TypeAnnotation
+  private[this] final case class NodeState(c: Command) {
+    import com.wavesplatform.features.BlockchainFeatures._
+
+    lazy val settings = Application.loadApplicationConfig(c.configFile.map(new File(_)))
+    lazy val wallet   = Wallet(settings.walletSettings)
+    lazy val time     = new NTP(settings.ntpServer)
+    lazy val estimator: ScriptEstimator =
+      if (settings.featuresSettings.supported.contains(NewScriptEstimator.id))
+        ScriptEstimatorV2.apply
+      else
+        ScriptEstimatorV1.apply
   }
 
   private[this] object IO {

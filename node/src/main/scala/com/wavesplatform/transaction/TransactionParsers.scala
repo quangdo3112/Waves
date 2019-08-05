@@ -1,6 +1,7 @@
 package com.wavesplatform.transaction
 
 import com.wavesplatform.crypto._
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.transaction.assets._
 import com.wavesplatform.transaction.assets.exchange.{ExchangeTransactionV1, ExchangeTransactionV2}
 import com.wavesplatform.transaction.lease.{LeaseCancelTransactionV1, LeaseCancelTransactionV2, LeaseTransactionV1, LeaseTransactionV2}
@@ -67,12 +68,12 @@ object TransactionParsers {
   def by(name: String): Option[TransactionParser]                = byName.get(name)
   def by(typeId: Byte, version: Byte): Option[TransactionParser] = all.get((typeId, version))
 
-  def parseBytes(data: Array[Byte]): Try[Transaction] =
+  def parseBytes(data: Array[Byte], estimator: ScriptEstimator): Try[Transaction] =
     data.headOption
       .fold[Try[Byte]](Failure(new IllegalArgumentException("Can't find the significant byte: the buffer is empty")))(Success(_))
       .flatMap { headByte =>
-        if (headByte == 0) modernParseBytes(data)
-        else oldParseBytes(headByte, data)
+        if (headByte == 0) modernParseBytes(data, estimator)
+        else oldParseBytes(headByte, data, estimator)
       }
 
   def forTypes(types: Byte*): Set[TransactionParser] =
@@ -84,13 +85,13 @@ object TransactionParsers {
   def allVersions(parsers: TransactionParser*): Set[TransactionParser] =
     forTypeSet(parsers.map(_.typeId).toSet)
 
-  private def oldParseBytes(tpe: Byte, data: Array[Byte]): Try[Transaction] =
+  private def oldParseBytes(tpe: Byte, data: Array[Byte], estimator: ScriptEstimator): Try[Transaction] =
     old
       .get(tpe)
       .fold[Try[TransactionParser]](Failure(new IllegalArgumentException(s"Unknown transaction type (old encoding): '$tpe'")))(Success(_))
-      .flatMap(_.parseBytes(data))
+      .flatMap(_.parseBytes(data, estimator))
 
-  private def modernParseBytes(data: Array[Byte]): Try[Transaction] = {
+  private def modernParseBytes(data: Array[Byte], estimator: ScriptEstimator): Try[Transaction] = {
     if (data.length < 2)
       Failure(new IllegalArgumentException(s"Can't determine the type and the version of transaction: the buffer has ${data.length} bytes"))
     else {
@@ -99,7 +100,7 @@ object TransactionParsers {
         .get((typeId, version))
         .fold[Try[TransactionParser]](
           Failure(new IllegalArgumentException(s"Unknown transaction type ($typeId) and version ($version) (modern encoding)")))(Success(_))
-        .flatMap(_.parseBytes(data))
+        .flatMap(_.parseBytes(data, estimator))
     }
   }
 

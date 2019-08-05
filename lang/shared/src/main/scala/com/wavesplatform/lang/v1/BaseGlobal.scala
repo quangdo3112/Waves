@@ -6,11 +6,12 @@ import com.wavesplatform.lang.contract.{ContractSerDe, DApp}
 import com.wavesplatform.lang.directives.values.{Expression, StdLibVersion, DApp => DAppType}
 import com.wavesplatform.lang.script.ContractScript.ContractScriptImpl
 import com.wavesplatform.lang.script.{ContractScript, Script}
-import com.wavesplatform.lang.utils
+import com.wavesplatform.lang.{ScriptEstimator, utils}
 import com.wavesplatform.lang.v1.compiler.Terms.EXPR
 import com.wavesplatform.lang.v1.compiler.{CompilerContext, ContractCompiler, ExpressionCompiler, Terms}
 import cats.implicits._
 import com.wavesplatform.lang.contract.meta.{Dic, MetaMapper}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 
 /**
   * This is a hack class for IDEA. The Global class is in JS/JVM modules.
@@ -24,6 +25,8 @@ trait BaseGlobal {
   val MaxLiteralLength = 12 * 1024
   val MaxAddressLength = 36
   val MaxByteStrSizeForVerifyFuncs = 32 * 1024
+
+  private val defaultEstimator = ScriptEstimatorV2.apply _
 
   def base58Encode(input: Array[Byte]): Either[String, String]
   def base58Decode(input: String, limit: Int = MaxLiteralLength): Either[String, Array[Byte]]
@@ -110,7 +113,7 @@ trait BaseGlobal {
 
       vars  = utils.varNames(stdLibVersion, Expression)
       costs = utils.functionCosts(stdLibVersion)
-      complexity <- ScriptEstimator(vars, costs, ex)
+      complexity <- defaultEstimator(vars, costs, ex)
     } yield (x, ex, complexity)
   }
 
@@ -119,19 +122,19 @@ trait BaseGlobal {
   def compileContract(input: String, ctx: CompilerContext, stdLibVersion: StdLibVersion): Either[String, ContractInfo] =
     for {
       dapp       <- ContractCompiler.compile(input, ctx)
-      complexity <- ContractScript.estimateComplexity(stdLibVersion, dapp)
+      complexity <- ContractScript.estimateComplexity(stdLibVersion, dapp, defaultEstimator)
       bytes      <- serializeContract(dapp, stdLibVersion)
     } yield (bytes, dapp, complexity._1, complexity._2)
 
   def decompile(compiledCode: String): Either[ScriptParseError, (String, Dic)] =
     for {
-      script <- Script.fromBase64String(compiledCode.trim, checkComplexity = false)
+      script <- Script.fromBase64String(compiledCode.trim, defaultEstimator, checkComplexity = false)
       meta   <- scriptMeta(script)
     } yield (Script.decompile(script)._1, meta)
 
-  def scriptMeta(compiledCode: String): Either[ScriptParseError, Dic] =
+  def scriptMeta(compiledCode: String, estimator: ScriptEstimator): Either[ScriptParseError, Dic] =
     for {
-      script <- Script.fromBase64String(compiledCode.trim, checkComplexity = false)
+      script <- Script.fromBase64String(compiledCode.trim, estimator, checkComplexity = false)
       meta   <- scriptMeta(script)
     } yield meta
 

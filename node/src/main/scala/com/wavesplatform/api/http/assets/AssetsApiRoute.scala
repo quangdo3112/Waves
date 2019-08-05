@@ -16,6 +16,7 @@ import com.wavesplatform.api.http._
 import com.wavesplatform.api.http.assets.AssetsApiRoute.DistributionParams
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.Base58
+import com.wavesplatform.features.EstimatorProvider._
 import com.wavesplatform.http.BroadcastRoute
 import com.wavesplatform.lang.ValidationError
 import com.wavesplatform.settings.RestAPISettings
@@ -295,7 +296,7 @@ case class AssetsApiRoute(settings: RestAPISettings, wallet: Wallet, utx: UtxPoo
       }).toRight("No issue transaction found with given asset ID")
       description <- blockchain.assetDescription(IssuedAsset(id)).toRight("Failed to get description of the asset")
       script = description.script.filter(_ => full)
-      complexity <- script.fold[Either[String, Long]](Right(0))(script => ScriptCompiler.estimate(script, script.stdLibVersion))
+      complexity <- script.fold[Either[String, Long]](Right(0))(script => ScriptCompiler.estimate(script, script.stdLibVersion, blockchain.estimator()))
     } yield {
       JsObject(
         Seq(

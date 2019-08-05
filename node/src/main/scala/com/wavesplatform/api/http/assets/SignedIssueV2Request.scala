@@ -4,7 +4,7 @@ import cats.implicits._
 import com.google.common.base.Charsets
 import com.wavesplatform.account.{AddressScheme, PublicKey}
 import com.wavesplatform.api.http.BroadcastRequest
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.transaction.assets.{IssueTransaction, IssueTransactionV2}
 import com.wavesplatform.transaction.Proofs
@@ -58,14 +58,14 @@ case class SignedIssueV2Request(@ApiModelProperty(value = "Base58 encoded Issuer
                                 @ApiModelProperty(value = "Base58 encoded compiled asset script")
                                 script: Option[String])
     extends BroadcastRequest {
-  def toTx: Either[ValidationError, IssueTransactionV2] =
+  def toTx(estimator: ScriptEstimator): Either[ValidationError, IssueTransactionV2] =
     for {
       _sender     <- PublicKey.fromBase58String(senderPublicKey)
       _proofBytes <- proofs.traverse(s => parseBase58(s, "invalid proof", Proofs.MaxProofStringSize))
       _proofs     <- Proofs.create(_proofBytes)
       _script <- script match {
         case None    => Right(None)
-        case Some(s) => Script.fromBase64String(s).map(Some(_))
+        case Some(s) => Script.fromBase64String(s, estimator).map(Some(_))
       }
       t <- IssueTransactionV2.create(
         AddressScheme.current.chainId,
