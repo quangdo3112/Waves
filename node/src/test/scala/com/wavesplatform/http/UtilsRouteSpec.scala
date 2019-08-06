@@ -11,28 +11,35 @@ import com.wavesplatform.lang.contract.DApp.{CallableAnnotation, CallableFunctio
 import com.wavesplatform.lang.directives.values.{V2, V3}
 import com.wavesplatform.lang.script.v1.ExprScript
 import com.wavesplatform.lang.script.{ContractScript, Script}
+import com.wavesplatform.lang.v1.ScriptEstimatorV1
 import com.wavesplatform.lang.v1.compiler.Terms._
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.PureContext
 import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.protobuf.dapp.DAppMeta
 import com.wavesplatform.protobuf.dapp.DAppMeta.CallableFuncSignature
+import com.wavesplatform.settings.TestFunctionalitySettings
 import com.wavesplatform.state.Blockchain
 import com.wavesplatform.state.diffs.FeeValidation
 import com.wavesplatform.transaction.smart.script.ScriptCompiler
 import com.wavesplatform.utils.Time
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.OneInstancePerTest
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
 import play.api.libs.json.{JsObject, JsValue}
 
-class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with PropertyChecks with MockFactory {
+class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with PropertyChecks with MockFactory with OneInstancePerTest {
+  private val blockchain: Blockchain = mock[Blockchain]
+  (blockchain.height _).expects().returning(1).anyNumberOfTimes()
+  (blockchain.activatedFeatures _).expects().returning(TestFunctionalitySettings.Enabled.preActivatedFeatures).anyNumberOfTimes()
+
   private val route = UtilsApiRoute(
     new Time {
       def correctedTime(): Long = System.currentTimeMillis()
       def getTimestamp(): Long  = System.currentTimeMillis()
     },
     restAPISettings,
-    mock[Blockchain]
+    blockchain
   ).route
 
   val script = FUNCTION_CALL(
@@ -216,7 +223,7 @@ class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with
       val compiled = ScriptCompiler.compile(expectedScript, ScriptEstimatorV2.apply)
 
       val json         = responseAs[JsValue]
-      val base64Result = Script.fromBase64String((json \ "script").as[String], ScriptEstimatorV2.apply)
+      val base64Result = Script.fromBase64String((json \ "script").as[String], ScriptEstimatorV1.apply)
       base64Result shouldBe compiled.map(_._1)
       (json \ "complexity").as[Long] shouldBe compiled.map(_._2).explicitGet()
       (json \ "extraFee").as[Long] shouldBe FeeValidation.ScriptExtraFee

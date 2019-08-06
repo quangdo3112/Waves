@@ -34,10 +34,10 @@ object ScriptEstimatorV2 {
     func: FUNC,
     ctx: EstimatorContext
   ): (Map[FunctionHeader, (FUNC, EstimatorContext)], Map[String, (Boolean, EvalM[Long])]) = {
-    val (funcs, lets) = funcsAndLets
+    val (funcs, l) = funcsAndLets
     (
-      funcs.updated(FunctionHeader.User(func.name), (func, ctx)),
-      lets ++ func.args.map((_, (false, const(1)))).toMap
+      funcs.updated(FunctionHeader.User(func.name), (func, lets.set(ctx)(func.args.map((_, (false, const(1)))).toMap))),
+      l
     )
   }
 
@@ -46,7 +46,8 @@ object ScriptEstimatorV2 {
       ctx <- get
       r <- lets.get(ctx).get(key) match {
         case Some((false, lzy)) => modify[EstimatorContext, ExecutionError](lets.modify(_)(_.updated(key, (true, lzy)))).flatMap(_ => lzy)
-        case Some((true,  _))   => const(0)
+        case Some((true,  _))   =>
+          const(0)
         case None               => raiseError[EstimatorContext, ExecutionError, Long](s"A definition of '$key' not found")
       }
     } yield r + 2
@@ -63,23 +64,37 @@ object ScriptEstimatorV2 {
   private def evalFuncCall(header: FunctionHeader, args: List[EXPR]): EvalM[Long] =
     for {
       ctx <- get
-      argsComplexity <- args.traverse(evalExpr).map(_.sum)
-      bodyComplexity <- predefFuncs.get(ctx).get(header).map(const)
-        .orElse(userFuncs.get(ctx).get(header).map(evalLocalFuncCall(_, ctx)))
+      //argsComplexity <- args.traverse(evalExpr).map(_.sum)
+      bodyComplexity <- predefFuncs.get(ctx).get(header).map(const).map(_.flatMap(c => args.traverse(evalExpr).map(_.sum + c)))
+        .orElse(userFuncs.get(ctx).get(header).map(evalLocalFuncCall(_, ctx, args)))
         .getOrElse(raiseError(s"function '$header' not found"))
-    } yield bodyComplexity + argsComplexity
+    } yield bodyComplexity
 
   private def evalLocalFuncCall(
       localFuncCtx: (FUNC, EstimatorContext),
-      baseCtx: EstimatorContext
+      baseCtx: EstimatorContext, args: List[EXPR]
   ) = {
     val (f, localCtx) = localFuncCtx
     for {
       _ <- modify[EstimatorContext, ExecutionError](userFuncs.set(_)(localCtx.userFuncs))
-      r <- evalExpr(f.body).map(_ + f.args.size * 5)
+      r <- for {
+          _ <- modify[EstimatorContext, ExecutionError](lets.modify(_)(s => {
+            val stringToTuple = s ++ localCtx.letDefs
+            println(stringToTuple)
+            stringToTuple
+          }))
+          argsComplexity <- args.traverse(evalExpr).map(_.sum)
+          r <- evalExpr(f.body).map(_ + f.args.size * 5)
+        } yield r + argsComplexity
       _ <- modify[EstimatorContext, ExecutionError](userFuncs.set(_)(baseCtx.userFuncs))
     } yield r
   }
+
+  private def intersect(
+    source: Map[String, (Boolean, EvalM[Long])],
+    target: Map[String, (Boolean, EvalM[Long])]
+  ): Map[String, (Boolean, EvalM[Long])] =
+    source.foldLeft(target) { case (s, (k, v)) => s.updated(k, s.getOrElse(k, v)) }
 
   private def const(l: Long): EvalM[Long] = Monad[EvalM].pure(l)
 

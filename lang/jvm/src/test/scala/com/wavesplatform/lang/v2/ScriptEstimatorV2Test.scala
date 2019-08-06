@@ -7,7 +7,7 @@ import com.wavesplatform.lang.utils._
 import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 
 class ScriptEstimatorV2Test extends ScriptEstimatorTest(ScriptEstimatorV2.apply) {
-  property("transitive ref usage") {
+  ignore("transitive ref usage") {
     def estimateRefUsage(ref: String): Long = {
       val script = s"""
                       |  let me = addressFromStringValue("")
