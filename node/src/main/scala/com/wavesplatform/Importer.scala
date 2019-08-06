@@ -37,7 +37,7 @@ object Importer extends ScorexLogging {
         Try(new FileInputStream(blockchainFile)) match {
           case Success(inputStream) =>
             val db                = openDB(settings.dbSettings.directory)
-            val blockchainUpdater = StorageFactory(settings, db, time, Observer.empty(UncaughtExceptionReporter.LogExceptionsToStandardErr))
+            val blockchainUpdater = StorageFactory(settings, db, time, Observer.empty(UncaughtExceptionReporter.default))
             val pos               = new PoSSelector(blockchainUpdater, settings.blockchainSettings, settings.synchronizationSettings)
             val ups               = new UtxPoolImpl(time, blockchainUpdater, PublishSubject(), settings.utxSettings)
             val extAppender       = BlockAppender(blockchainUpdater, time, ups, pos, scheduler, verifyTransactions) _
@@ -78,7 +78,7 @@ object Importer extends ScorexLogging {
                       )
 
                     if (blockchainUpdater.lastBlockId.contains(block.reference)) {
-                      Await.result(extAppender.apply(block).runAsync, Duration.Inf) match {
+                      Await.result(extAppender.apply(block).runAsyncLogErr, Duration.Inf) match {
                         case Left(ve) =>
                           log.error(s"Error appending block: $ve")
                           quit = true

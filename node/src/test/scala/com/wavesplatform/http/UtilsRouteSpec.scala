@@ -3,7 +3,6 @@ package com.wavesplatform.http
 import com.google.protobuf.ByteString
 import com.wavesplatform.api.http.ApiError.TooBigArrayAllocation
 import com.wavesplatform.api.http.{ScriptWithImportsRequest, UtilsApiRoute}
-import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
 import com.wavesplatform.crypto
 import com.wavesplatform.http.ApiMarshallers._
@@ -15,11 +14,11 @@ import com.wavesplatform.lang.script.{ContractScript, Script}
 import com.wavesplatform.lang.v1.compiler.Terms._
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.PureContext
 import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
-import com.wavesplatform.transaction.smart.script.ScriptCompiler
 import com.wavesplatform.protobuf.dapp.DAppMeta
 import com.wavesplatform.protobuf.dapp.DAppMeta.CallableFuncSignature
 import com.wavesplatform.state.Blockchain
 import com.wavesplatform.state.diffs.FeeValidation
+import com.wavesplatform.transaction.smart.script.ScriptCompiler
 import com.wavesplatform.utils.Time
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -153,8 +152,7 @@ class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with
           |{"x":"String","y":"Boolean","z":"ByteVector","w":"Int"},
           |{}
           |]}
-          |"""
-          .stripMargin
+          |""".stripMargin
           .replace("\n", "")
     }
   }
@@ -217,7 +215,7 @@ class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with
         """.stripMargin
       val compiled = ScriptCompiler.compile(expectedScript, ScriptEstimatorV2.apply)
 
-      val json = responseAs[JsValue]
+      val json         = responseAs[JsValue]
       val base64Result = Script.fromBase64String((json \ "script").as[String], ScriptEstimatorV2.apply)
       base64Result shouldBe compiled.map(_._1)
       (json \ "complexity").as[Long] shouldBe compiled.map(_._2).explicitGet()
