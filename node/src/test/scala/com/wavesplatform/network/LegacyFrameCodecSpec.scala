@@ -2,6 +2,7 @@ package com.wavesplatform.network
 
 import java.net.InetSocketAddress
 
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.network.message.{MessageSpec, Message => ScorexMessage}
 import com.wavesplatform.{TransactionGen, crypto}
 import io.netty.buffer.Unpooled.wrappedBuffer
@@ -45,7 +46,7 @@ class LegacyFrameCodecSpec extends FreeSpec with Matchers with MockFactory with 
     }
 
     val decodedTxs = decoded.map { x =>
-      TransactionSpec.deserializeData(x.data).get
+      TransactionSpec.deserializeData(x.data, ScriptEstimatorV2.apply).get
     }
 
     decodedTxs shouldEqual origTxs

@@ -3,6 +3,7 @@ package com.wavesplatform.network
 import java.nio.charset.StandardCharsets
 
 import com.wavesplatform.TransactionGen
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.assets.IssueTransactionV1
 import com.wavesplatform.transaction.{ProvenTransaction, Transaction}
 import io.netty.channel.ChannelHandlerContext
@@ -34,7 +35,7 @@ class MessageCodecSpec extends FreeSpec with Matchers with MockFactory with Prop
     codec.blockCalls shouldBe 0
   }
 
-  private class SpiedMessageCodec extends MessageCodec(PeerDatabase.NoOp) {
+  private class SpiedMessageCodec extends MessageCodec(PeerDatabase.NoOp, ScriptEstimatorV2.apply) {
     var blockCalls = 0
 
     override def block(ctx: ChannelHandlerContext, e: Throwable): Unit = {

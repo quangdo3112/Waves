@@ -1,9 +1,10 @@
 package com.wavesplatform.transaction
 
 import com.wavesplatform.TransactionGen
-import com.wavesplatform.account.{PublicKey, Address}
+import com.wavesplatform.account.{Address, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction.transfer._
 import org.scalatest._
@@ -14,14 +15,14 @@ class TransferTransactionV2Specification extends PropSpec with PropertyChecks wi
 
   property("VersionedTransferTransactionSpecification serialization roundtrip") {
     forAll(transferV2Gen) { tx: TransferTransactionV2 =>
-      val recovered = TransferTransactionV2.parseBytes(tx.bytes()).get
+      val recovered = TransferTransactionV2.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       assertTxs(recovered, tx)
     }
   }
 
   property("VersionedTransferTransactionSpecification serialization from TypedTransaction") {
     forAll(transferV2Gen) { tx: TransferTransactionV2 =>
-      val recovered = TransactionParsers.parseBytes(tx.bytes()).get
+      val recovered = TransactionParsers.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       assertTxs(recovered.asInstanceOf[TransferTransactionV2], tx)
     }
   }

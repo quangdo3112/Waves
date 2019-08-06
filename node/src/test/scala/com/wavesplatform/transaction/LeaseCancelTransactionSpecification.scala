@@ -4,6 +4,7 @@ import com.wavesplatform.TransactionGen
 import com.wavesplatform.account.PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.lease.{LeaseCancelTransaction, LeaseCancelTransactionV1, LeaseCancelTransactionV2}
 import org.scalatest._
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
@@ -13,14 +14,14 @@ class LeaseCancelTransactionSpecification extends PropSpec with PropertyChecks w
 
   property("Lease cancel serialization roundtrip") {
     forAll(leaseCancelGen) { tx: LeaseCancelTransaction =>
-      val recovered = tx.builder.parseBytes(tx.bytes()).get.asInstanceOf[LeaseCancelTransaction]
+      val recovered = tx.builder.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get.asInstanceOf[LeaseCancelTransaction]
       assertTxs(recovered, tx)
     }
   }
 
   property("Lease cancel serialization from TypedTransaction") {
     forAll(leaseCancelGen) { tx: LeaseCancelTransaction =>
-      val recovered = TransactionParsers.parseBytes(tx.bytes()).get
+      val recovered = TransactionParsers.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       assertTxs(recovered.asInstanceOf[LeaseCancelTransaction], tx)
     }
   }

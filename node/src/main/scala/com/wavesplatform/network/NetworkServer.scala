@@ -5,6 +5,7 @@ import java.nio.channels.ClosedChannelException
 import java.util.concurrent.ConcurrentHashMap
 
 import com.wavesplatform.Version
+import com.wavesplatform.features.EstimatorProvider._
 import com.wavesplatform.metrics.Metrics
 import com.wavesplatform.network.MessageObserver.Messages
 import com.wavesplatform.settings._
@@ -60,7 +61,7 @@ object NetworkServer extends ScorexLogging {
 
     val trafficWatcher = new TrafficWatcher
     val trafficLogger  = new TrafficLogger(settings.networkSettings.trafficLogger)
-    val messageCodec   = new MessageCodec(peerDatabase)
+    val messageCodec   = new MessageCodec(peerDatabase, ng.estimator())
 
     val excludedAddresses: Set[InetSocketAddress] = {
       val bindAddress = settings.networkSettings.bindAddress

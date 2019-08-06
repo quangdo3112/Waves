@@ -1,5 +1,7 @@
 package com.wavesplatform.network.message
 
+import com.wavesplatform.lang.ScriptEstimator
+
 import scala.reflect.ClassTag
 import scala.util.Try
 
@@ -10,7 +12,7 @@ abstract class MessageSpec[Content <: AnyRef](implicit contentCt: ClassTag[Conte
 
   def maxLength: Int
 
-  def deserializeData(bytes: Array[Byte]): Try[Content]
+  def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[Content]
 
   def serializeData(data: Content): Array[Byte]
 

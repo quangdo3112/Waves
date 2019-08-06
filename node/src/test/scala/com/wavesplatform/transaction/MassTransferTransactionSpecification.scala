@@ -4,6 +4,7 @@ import com.wavesplatform.TransactionGen
 import com.wavesplatform.account.PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction.TxValidationError.GenericError
 import com.wavesplatform.transaction.transfer.MassTransferTransaction.{MaxTransferCount, ParsedTransfer, Transfer}
@@ -17,7 +18,7 @@ class MassTransferTransactionSpecification extends PropSpec with PropertyChecks 
   property("serialization roundtrip") {
     forAll(massTransferGen) { tx: MassTransferTransaction =>
       require(tx.bytes().head == MassTransferTransaction.typeId)
-      val recovered = MassTransferTransaction.parseBytes(tx.bytes()).get
+      val recovered = MassTransferTransaction.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
 
       recovered.sender.address shouldEqual tx.sender.address
       recovered.assetId shouldBe tx.assetId
@@ -36,7 +37,7 @@ class MassTransferTransactionSpecification extends PropSpec with PropertyChecks 
 
   property("serialization from TypedTransaction") {
     forAll(massTransferGen) { tx: MassTransferTransaction =>
-      val recovered = TransactionParsers.parseBytes(tx.bytes()).get
+      val recovered = TransactionParsers.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual tx.bytes()
     }
   }

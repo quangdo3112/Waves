@@ -4,8 +4,9 @@ import com.wavesplatform.common.utils._
 import com.wavesplatform.lang.directives.DirectiveDictionary
 import com.wavesplatform.lang.directives.values._
 import com.wavesplatform.lang.script.{ContractScript, ScriptReader}
-import com.wavesplatform.lang.v1.Serde
+import com.wavesplatform.lang.v1.{ScriptEstimatorV1, Serde}
 import com.wavesplatform.lang.v1.testing.TypedScriptGen
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.state.diffs.produce
 import com.wavesplatform.{NoShrink, crypto}
 import org.scalacheck.{Arbitrary, Gen}
@@ -14,19 +15,20 @@ import org.scalatest.{Inside, Matchers, PropSpec}
 
 class ScriptReaderTest extends PropSpec with PropertyChecks with Matchers with TypedScriptGen with Inside with NoShrink {
   val checksumLength = 4
+  private val estimator = ScriptEstimatorV2.apply _
 
   property("should parse all bytes for V1") {
     forAll(exprGen) { sc =>
       val body     = Array(V1.id.toByte) ++ Serde.serialize(sc) ++ "foo".getBytes("UTF-8")
       val allBytes = body ++ crypto.secureHash(body).take(checksumLength)
-      ScriptReader.fromBytes(allBytes) should produce("bytes left")
+      ScriptReader.fromBytes(allBytes, estimator) should produce("bytes left")
     }
   }
 
   property("should parse all bytes for V3") {
     forAll(contractGen) { sc =>
-      val allBytes = ContractScript.apply(V3, sc).explicitGet().bytes().arr
-      ScriptReader.fromBytes(allBytes).explicitGet().expr shouldBe sc
+      val allBytes = ContractScript.apply(V3, sc, estimator).explicitGet().bytes().arr
+      ScriptReader.fromBytes(allBytes, estimator).explicitGet().expr shouldBe sc
     }
   }
 
@@ -36,12 +38,12 @@ class ScriptReaderTest extends PropSpec with PropertyChecks with Matchers with T
         ScriptCompiler.compile(s"""
                                   |{-# STDLIB_VERSION ${version.value} #-}
                                   |  true
-                                  """.stripMargin)
+                                  """.stripMargin, estimator)
       }
     scriptEthList.foreach(_ shouldBe 'right)
 
     scriptEthList.foreach { scriptEth =>
-      ScriptReader.fromBytes(scriptEth.explicitGet()._1.bytes()) shouldBe 'right
+      ScriptReader.fromBytes(scriptEth.explicitGet()._1.bytes(), estimator) shouldBe 'right
     }
   }
 
@@ -49,7 +51,7 @@ class ScriptReaderTest extends PropSpec with PropertyChecks with Matchers with T
     import ScriptReaderTest._
 
     forAll(invalidPrefixV0Length) { scBytes =>
-      ScriptReader.fromBytes(scBytes) shouldBe 'left
+      ScriptReader.fromBytes(scBytes, estimator) shouldBe 'left
     }
   }
 
@@ -57,7 +59,7 @@ class ScriptReaderTest extends PropSpec with PropertyChecks with Matchers with T
     import ScriptReaderTest._
 
     forAll(Gen.oneOf(invalidPrefixV0, invalidPrefix)) { scBytes =>
-      ScriptReader.fromBytes(scBytes) shouldBe 'left
+      ScriptReader.fromBytes(scBytes, estimator) shouldBe 'left
     }
   }
 }

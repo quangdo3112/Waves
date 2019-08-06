@@ -2,6 +2,7 @@ package com.wavesplatform.network
 
 import java.util
 
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.utils.ScorexLogging
 import io.netty.channel.ChannelHandler.Sharable
 import io.netty.channel.ChannelHandlerContext
@@ -10,7 +11,9 @@ import io.netty.handler.codec.MessageToMessageCodec
 import scala.util.{Failure, Success}
 
 @Sharable
-class MessageCodec(peerDatabase: PeerDatabase) extends MessageToMessageCodec[RawBytes, Message] with ScorexLogging {
+class MessageCodec(peerDatabase: PeerDatabase, estimator: ScriptEstimator)
+  extends MessageToMessageCodec[RawBytes, Message]
+    with  ScorexLogging {
 
   import BasicMessagesRepo.specsByCodes
 
@@ -32,7 +35,7 @@ class MessageCodec(peerDatabase: PeerDatabase) extends MessageToMessageCodec[Raw
   }
 
   override def decode(ctx: ChannelHandlerContext, msg: RawBytes, out: util.List[AnyRef]): Unit = {
-    specsByCodes(msg.code).deserializeData(msg.data) match {
+    specsByCodes(msg.code).deserializeData(msg.data, estimator) match {
       case Success(x) => out.add(x)
       case Failure(e) => block(ctx, e)
     }

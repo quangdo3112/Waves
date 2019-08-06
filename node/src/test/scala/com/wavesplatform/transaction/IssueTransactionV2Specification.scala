@@ -12,6 +12,7 @@ import com.wavesplatform.lang.v1.compiler
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.waves.WavesContext
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.{CryptoContext, PureContext}
 import com.wavesplatform.lang.v1.parser.Parser
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.state.HistoryTest
 import com.wavesplatform.transaction.assets.IssueTransactionV2
 import com.wavesplatform.transaction.smart.WavesEnvironment
@@ -26,7 +27,7 @@ class IssueTransactionV2Specification extends PropSpec with PropertyChecks with 
 
   property("SmartIssueTransaction serialization roundtrip") {
     forAll(smartIssueTransactionGen()) { tx: IssueTransactionV2 =>
-      val recovered = IssueTransactionV2.parseBytes(tx.bytes()).get
+      val recovered = IssueTransactionV2.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
 
       tx.sender.address shouldEqual recovered.sender.address
       tx.timestamp shouldEqual recovered.timestamp
@@ -114,7 +115,7 @@ class IssueTransactionV2Specification extends PropSpec with PropertyChecks with 
           ))
     }
 
-    val script = ContractScript(V3, compiler.ContractCompiler(ctx.compilerContext, contract).explicitGet())
+    val script = ContractScript(V3, compiler.ContractCompiler(ctx.compilerContext, contract).explicitGet(), ScriptEstimatorV2.apply)
 
     val tx = IssueTransactionV2
       .create(

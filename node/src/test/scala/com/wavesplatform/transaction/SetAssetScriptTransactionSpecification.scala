@@ -7,6 +7,7 @@ import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.lang.contract.DApp
 import com.wavesplatform.lang.directives.values._
 import com.wavesplatform.lang.script.{ContractScript, Script}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.protobuf.dapp.DAppMeta
 import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction.assets.SetAssetScriptTransaction
@@ -38,7 +39,7 @@ class SetAssetScriptTransactionSpecification extends GenericTransactionSpecifica
            AddressScheme.current.chainId,
            PublicKey.fromBase58String("5k3gXC486CCFCwzUAgavH9JfPwmq9CbBZvTARnFujvgr").explicitGet(),
            IssuedAsset(ByteStr.decodeBase58("DUyJyszsWcmZG7q2Ctk1hisDeGBPB8dEzyU8Gs5V2j3n").get),
-           Some(Script.fromBase64String("base64:AQkAAGcAAAACAHho/EXujJiPAJUhuPXZYac+rt2jYg==").explicitGet()),
+           Some(Script.fromBase64String("base64:AQkAAGcAAAACAHho/EXujJiPAJUhuPXZYac+rt2jYg==", ScriptEstimatorV2.apply).explicitGet()),
            78311891L,
            1868142423132802425L,
            Proofs(
@@ -60,7 +61,7 @@ class SetAssetScriptTransactionSpecification extends GenericTransactionSpecifica
         AddressScheme.current.chainId,
         accountA,
         IssuedAsset(ByteStr.decodeBase58("DUyJyszsWcmZG7q2Ctk1hisDeGBPB8dEzyU8Gs5V2j3n").get),
-        Some(ContractScript(V3, DApp(DAppMeta(), List.empty, List.empty, None)).explicitGet()),
+        Some(ContractScript(V3, DApp(DAppMeta(), List.empty, List.empty, None), ScriptEstimatorV2.apply).explicitGet()),
         1222,
         System.currentTimeMillis(),
         Proofs.empty

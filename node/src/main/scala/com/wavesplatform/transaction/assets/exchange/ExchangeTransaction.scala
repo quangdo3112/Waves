@@ -2,7 +2,7 @@ package com.wavesplatform.transaction.assets.exchange
 
 import com.wavesplatform.account.PublicKey
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
-import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.{ScriptEstimator, ValidationError}
 import com.wavesplatform.transaction.TxValidationError._
 import com.wavesplatform.transaction._
 import io.swagger.annotations.ApiModelProperty
@@ -51,11 +51,11 @@ object ExchangeTransaction {
 
   val typeId: Byte = 7
 
-  def parse(bytes: Array[Byte]): Try[ExchangeTransaction] =
+  def parse(bytes: Array[Byte], estimator: ScriptEstimator): Try[ExchangeTransaction] =
     bytes.headOption
       .fold(Failure(new Exception("Empty array")): Try[ExchangeTransaction]) { b =>
-        if (b == 0) ExchangeTransactionV2.parseBytes(bytes)
-        else ExchangeTransactionV1.parseBytes(bytes)
+        if (b == 0) ExchangeTransactionV2.parseBytes(bytes, estimator)
+        else ExchangeTransactionV1.parseBytes(bytes, estimator)
       }
 
   def validateExchangeParams(tx: ExchangeTransaction): Either[ValidationError, Unit] = {

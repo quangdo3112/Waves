@@ -15,6 +15,7 @@ import com.wavesplatform.http.DebugMessage
 import com.wavesplatform.it.Node
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.lang.v1.compiler.Terms
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.state.{AssetDistribution, AssetDistributionPage, DataEntry, Portfolio}
 import com.wavesplatform.transaction.Asset
 import com.wavesplatform.transaction.assets.IssueTransactionV2
@@ -166,7 +167,7 @@ object SyncHttpApi extends Assertions {
           quantity = quantity,
           decimals = decimals,
           reissuable = reissuable,
-          script = script.map(x => Script.fromBase64String(x).explicitGet()),
+          script = script.map(x => Script.fromBase64String(x, ScriptEstimatorV2.apply).explicitGet()),
           fee = fee,
           timestamp = System.currentTimeMillis()
         )

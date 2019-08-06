@@ -4,6 +4,7 @@ import com.wavesplatform.TransactionGen
 import com.wavesplatform.account.PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.assets.{IssueTransaction, IssueTransactionV1}
 import org.scalatest._
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
@@ -13,14 +14,14 @@ class IssueTransactionV1Specification extends PropSpec with PropertyChecks with 
 
   property("Issue serialization roundtrip") {
     forAll(issueGen) { issue: IssueTransaction =>
-      val recovered = issue.builder.parseBytes(issue.bytes()).get
+      val recovered = issue.builder.parseBytes(issue.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual issue.bytes()
     }
   }
 
   property("Issue serialization from TypedTransaction") {
     forAll(issueGen) { issue: IssueTransaction =>
-      val recovered = TransactionParsers.parseBytes(issue.bytes()).get
+      val recovered = TransactionParsers.parseBytes(issue.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual issue.bytes()
     }
   }

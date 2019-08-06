@@ -4,6 +4,7 @@ import com.wavesplatform.TransactionGen
 import com.wavesplatform.account.PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction.assets.{BurnTransaction, BurnTransactionV1, BurnTransactionV2}
 import org.scalatest._
@@ -14,14 +15,14 @@ class BurnTransactionSpecification extends PropSpec with PropertyChecks with Mat
 
   property("Burn serialization roundtrip") {
     forAll(burnGen) { issue: BurnTransaction =>
-      val recovered = issue.builder.parseBytes(issue.bytes()).get
+      val recovered = issue.builder.parseBytes(issue.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual issue.bytes()
     }
   }
 
   property("Burn serialization from TypedTransaction") {
     forAll(burnGen) { issue: BurnTransaction =>
-      val recovered = TransactionParsers.parseBytes(issue.bytes()).get
+      val recovered = TransactionParsers.parseBytes(issue.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual issue.bytes()
     }
   }

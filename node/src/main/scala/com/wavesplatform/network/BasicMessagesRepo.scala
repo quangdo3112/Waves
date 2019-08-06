@@ -8,7 +8,7 @@ import com.wavesplatform.account.PublicKey
 import com.wavesplatform.block.{Block, MicroBlock}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.crypto._
-import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.mining.Miner.MaxTransactionsPerMicroblock
 import com.wavesplatform.network.message.Message._
 import com.wavesplatform.network.message._
@@ -21,7 +21,7 @@ object GetPeersSpec extends MessageSpec[GetPeers.type] {
 
   override val maxLength: Int = 0
 
-  override def deserializeData(bytes: Array[Byte]): Try[GetPeers.type] =
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[GetPeers.type] =
     Try {
       require(bytes.isEmpty, "Non-empty data for GetPeers")
       GetPeers
@@ -39,7 +39,7 @@ object PeersSpec extends MessageSpec[KnownPeers] {
 
   override val maxLength: Int = DataLength + 1000 * (AddressLength + PortLength)
 
-  override def deserializeData(bytes: Array[Byte]): Try[KnownPeers] = Try {
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[KnownPeers] = Try {
     val lengthBytes = util.Arrays.copyOfRange(bytes, 0, DataLength)
     val length      = Ints.fromByteArray(lengthBytes)
 
@@ -80,7 +80,7 @@ trait SignaturesSeqSpec[A <: AnyRef] extends MessageSpec[A] {
 
   override val maxLength: Int = DataLength + (200 * SignatureLength)
 
-  override def deserializeData(bytes: Array[Byte]): Try[A] = Try {
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[A] = Try {
     val lengthBytes = bytes.take(DataLength)
     val length      = Ints.fromByteArray(lengthBytes)
 
@@ -125,7 +125,7 @@ object GetBlockSpec extends MessageSpec[GetBlock] {
 
   override def serializeData(signature: GetBlock): Array[Byte] = signature.signature.arr
 
-  override def deserializeData(bytes: Array[Byte]): Try[GetBlock] = Try {
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[GetBlock] = Try {
     require(bytes.length == maxLength, "Data does not match length")
     GetBlock(ByteStr(bytes))
   }
@@ -138,7 +138,7 @@ object BlockSpec extends MessageSpec[Block] {
 
   override def serializeData(block: Block): Array[Byte] = block.bytes()
 
-  override def deserializeData(bytes: Array[Byte]): Try[Block] = Block.parseBytes(bytes)
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[Block] = Block.parseBytes(bytes)
 }
 
 object ScoreSpec extends MessageSpec[BigInt] {
@@ -153,7 +153,7 @@ object ScoreSpec extends MessageSpec[BigInt] {
     bb.array()
   }
 
-  override def deserializeData(bytes: Array[Byte]): Try[BigInt] = Try {
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[BigInt] = Try {
     BigInt(1, bytes)
   }
 }
@@ -164,8 +164,8 @@ object TransactionSpec extends MessageSpec[Transaction] {
   // Modeled after Data Transaction https://wavesplatform.atlassian.net/wiki/spaces/MAIN/pages/119734321/Data+Transaction
   override val maxLength: Int = 150 * 1024
 
-  override def deserializeData(bytes: Array[Byte]): Try[Transaction] =
-    TransactionParsers.parseBytes(bytes, ScriptEstimatorV2.apply)        //todo !!! resolve estimator
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[Transaction] =
+    TransactionParsers.parseBytes(bytes, estimator)
 
   override def serializeData(tx: Transaction): Array[Byte] = tx.bytes()
 }
@@ -173,7 +173,7 @@ object TransactionSpec extends MessageSpec[Transaction] {
 object MicroBlockInvSpec extends MessageSpec[MicroBlockInv] {
   override val messageCode: MessageCode = 26: Byte
 
-  override def deserializeData(bytes: Array[Byte]): Try[MicroBlockInv] =
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[MicroBlockInv] =
     Try(
       MicroBlockInv(
         sender = PublicKey.apply(bytes.take(KeyLength)),
@@ -192,7 +192,7 @@ object MicroBlockInvSpec extends MessageSpec[MicroBlockInv] {
 object MicroBlockRequestSpec extends MessageSpec[MicroBlockRequest] {
   override val messageCode: MessageCode = 27: Byte
 
-  override def deserializeData(bytes: Array[Byte]): Try[MicroBlockRequest] =
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[MicroBlockRequest] =
     Try(MicroBlockRequest(ByteStr(bytes)))
 
   override def serializeData(req: MicroBlockRequest): Array[Byte] = req.totalBlockSig.arr
@@ -203,8 +203,8 @@ object MicroBlockRequestSpec extends MessageSpec[MicroBlockRequest] {
 object MicroBlockResponseSpec extends MessageSpec[MicroBlockResponse] {
   override val messageCode: MessageCode = 28: Byte
 
-  override def deserializeData(bytes: Array[Byte]): Try[MicroBlockResponse] =
-    MicroBlock.parseBytes(bytes).map(MicroBlockResponse)
+  override def deserializeData(bytes: Array[Byte], estimator: ScriptEstimator): Try[MicroBlockResponse] =
+    MicroBlock.parseBytes(bytes, estimator).map(MicroBlockResponse)
 
   override def serializeData(resp: MicroBlockResponse): Array[Byte] = resp.microblock.bytes()
 

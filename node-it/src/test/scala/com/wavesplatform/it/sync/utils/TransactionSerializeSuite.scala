@@ -11,6 +11,7 @@ import com.wavesplatform.lang.script.Script
 import com.wavesplatform.lang.v1.FunctionHeader
 import com.wavesplatform.lang.v1.compiler.Terms
 import com.wavesplatform.lang.v1.compiler.Terms.TRUE
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.state.{BinaryDataEntry, BooleanDataEntry, IntegerDataEntry}
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.transaction.assets._
@@ -286,7 +287,7 @@ class TransactionSerializeSuite extends BaseTransactionSuite with TableDrivenPro
       chainId,
       publicKey,
       IssuedAsset(ByteStr.decodeBase58("DUyJyszsWcmZG7q2Ctk1hisDeGBPB8dEzyU8Gs5V2j3n").get),
-      Some(Script.fromBase64String("base64:AQkAAGcAAAACAHho/EXujJiPAJUhuPXZYac+rt2jYg==").right.get),
+      Some(Script.fromBase64String("base64:AQkAAGcAAAACAHho/EXujJiPAJUhuPXZYac+rt2jYg==", ScriptEstimatorV2.apply).right.get),
       1.waves,
       ts,
       Proofs(

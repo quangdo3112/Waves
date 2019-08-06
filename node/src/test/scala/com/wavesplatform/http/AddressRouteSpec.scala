@@ -11,6 +11,7 @@ import com.wavesplatform.common.utils.{Base58, Base64, EitherExt2}
 import com.wavesplatform.http.ApiMarshallers._
 import com.wavesplatform.lang.directives.values.V3
 import com.wavesplatform.lang.script.ContractScript
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.protobuf.dapp.DAppMeta
 import com.wavesplatform.protobuf.dapp.DAppMeta.CallableFuncSignature
 import com.wavesplatform.state.StringDataEntry
@@ -191,7 +192,7 @@ class AddressRouteSpec
     )
     (blockchain.accountScript _)
       .when(allAccounts(3).toAddress)
-      .onCall((_: AddressOrAlias) => Some(ContractScript(V3, contractWithMeta).explicitGet()))
+      .onCall((_: AddressOrAlias) => Some(ContractScript(V3, contractWithMeta, ScriptEstimatorV2.apply).explicitGet()))
     Get(routePath(s"/scriptInfo/${allAddresses(3)}")) ~> route ~> check {
       val response = responseAs[JsObject]
       (response \ "address").as[String] shouldBe allAddresses(3)

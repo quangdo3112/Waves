@@ -6,6 +6,7 @@ import com.wavesplatform.it.api.SyncHttpApi._
 import com.wavesplatform.it.sync.{issueFee, minFee, smartFee, smartMinFee}
 import com.wavesplatform.it.transactions.BaseTransactionSuite
 import com.wavesplatform.it.util._
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction.smart.InvokeScriptTransaction.Payment
 import com.wavesplatform.transaction.smart.script.ScriptCompiler
@@ -48,6 +49,7 @@ class InvokeScriptWithSmartAccountAndAssetSuite extends BaseTransactionSuite wit
            |  case tx:TransferTransaction => tx.amount > 10
            |  case _ => false
            |}""".stripMargin,
+              ScriptEstimatorV2.apply
             )
             .explicitGet()
             ._1
@@ -75,7 +77,8 @@ class InvokeScriptWithSmartAccountAndAssetSuite extends BaseTransactionSuite wit
            |  case tx:InvokeScriptTransaction => extract(tx.payment).amount > 10
            |  case tx:TransferTransaction => true
            |  case _ => false
-           |}""".stripMargin
+           |}""".stripMargin,
+              ScriptEstimatorV2.apply
             )
             .explicitGet()
             ._1
@@ -149,7 +152,7 @@ class InvokeScriptWithSmartAccountAndAssetSuite extends BaseTransactionSuite wit
           |func justWriteData() = {
           |  WriteSet([DataEntry("a", "a")])
           |}
-        """.stripMargin).explicitGet()._1
+        """.stripMargin, ScriptEstimatorV2.apply).explicitGet()._1
     val dAppSetScriptTxId = sender.setScript(dApp.address, Some(dAppScript.bytes().base64)).id
 
     val smartCallerScript        = ScriptCompiler.compile("""
@@ -166,7 +169,7 @@ class InvokeScriptWithSmartAccountAndAssetSuite extends BaseTransactionSuite wit
           |    case _ => false
           |  }
           |}
-        """.stripMargin).explicitGet()._1
+        """.stripMargin, ScriptEstimatorV2.apply).explicitGet()._1
     val smartCallerSetScriptTxId = sender.setScript(smartCaller.address, Some(smartCallerScript.bytes().base64)).id
 
     nodes.waitForHeightAriseAndTxPresent(smartCallerSetScriptTxId)

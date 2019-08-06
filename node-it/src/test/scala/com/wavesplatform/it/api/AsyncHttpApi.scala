@@ -17,6 +17,7 @@ import com.wavesplatform.it.util._
 import com.wavesplatform.lang.v1.FunctionHeader
 import com.wavesplatform.lang.v1.compiler.Terms
 import com.wavesplatform.lang.v1.compiler.Terms.FUNCTION_CALL
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.state.{AssetDistribution, AssetDistributionPage, DataEntry, Portfolio}
 import com.wavesplatform.transaction.assets.{BurnTransaction, IssueTransaction, SetAssetScriptTransaction, SponsorFeeTransaction}
 import com.wavesplatform.transaction.lease.{LeaseCancelTransaction, LeaseTransaction}
@@ -435,7 +436,7 @@ object AsyncHttpApi extends Assertions {
       postJson("/assets/broadcast/issue", issue).as[Transaction]
 
     def signedIssue(issue: SignedIssueV2Request): Future[Transaction] =
-      signedBroadcast(issue.toTx.explicitGet().json())
+      signedBroadcast(issue.toTx(ScriptEstimatorV2.apply).explicitGet().json())
 
     def batchSignedTransfer(transfers: Seq[SignedTransferV2Request], timeout: FiniteDuration = 1.minute): Future[Seq[Transaction]] = {
       val request = _post(s"${n.nodeApiEndpoint}/assets/broadcast/batch-transfer")

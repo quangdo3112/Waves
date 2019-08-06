@@ -1,6 +1,7 @@
 package com.wavesplatform.transaction
 
 import com.wavesplatform.TransactionGen
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import org.scalacheck.Gen
 import org.scalatest._
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
@@ -22,7 +23,7 @@ abstract class GenericTransactionSpecification[T <: com.wavesplatform.transactio
   property(s"$transactionName serialization roundtrip") {
     forAll(generator) { t =>
       val tx        = t._2
-      val recovered = transactionParser.parseBytes(tx.bytes()).get
+      val recovered = transactionParser.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       assertTxs(recovered, tx)
     }
   }
@@ -30,7 +31,7 @@ abstract class GenericTransactionSpecification[T <: com.wavesplatform.transactio
   property(s"$transactionName serialization from TypedTransaction") {
     forAll(generator) { t =>
       val tx        = t._2
-      val recovered = TransactionParsers.parseBytes(tx.bytes()).get
+      val recovered = TransactionParsers.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       assertTxs(recovered.asInstanceOf[T], tx)
     }
   }

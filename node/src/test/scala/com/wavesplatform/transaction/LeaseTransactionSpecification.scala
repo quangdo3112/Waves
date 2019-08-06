@@ -1,9 +1,10 @@
 package com.wavesplatform.transaction
 
 import com.wavesplatform.TransactionGen
-import com.wavesplatform.account.{PublicKey, Address}
+import com.wavesplatform.account.{Address, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.lease.{LeaseTransaction, LeaseTransactionV1, LeaseTransactionV2}
 import org.scalatest._
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
@@ -13,14 +14,14 @@ class LeaseTransactionSpecification extends PropSpec with PropertyChecks with Ma
 
   property("Lease transaction serialization roundtrip") {
     forAll(leaseGen) { tx: LeaseTransaction =>
-      val recovered = tx.builder.parseBytes(tx.bytes()).get.asInstanceOf[LeaseTransaction]
+      val recovered = tx.builder.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get.asInstanceOf[LeaseTransaction]
       assertTxs(recovered, tx)
     }
   }
 
   property("Lease transaction from TransactionParser") {
     forAll(leaseGen) { tx: LeaseTransaction =>
-      val recovered = TransactionParsers.parseBytes(tx.bytes()).get
+      val recovered = TransactionParsers.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       assertTxs(recovered.asInstanceOf[LeaseTransaction], tx)
     }
   }
@@ -107,7 +108,7 @@ class LeaseTransactionSpecification extends PropSpec with PropertyChecks with Ma
       // hack in an assetId
       bytes(3) = 1: Byte
       val bytesWithAssetId = bytes.take(4) ++ assetId ++ bytes.drop(4)
-      val parsed           = tx.builder.parseBytes(bytesWithAssetId)
+      val parsed           = tx.builder.parseBytes(bytesWithAssetId, ScriptEstimatorV2.apply)
       parsed.isFailure shouldBe true
       parsed.failed.get.getMessage.contains("Leasing assets is not supported yet") shouldBe true
     }

@@ -17,6 +17,7 @@ import com.wavesplatform.lang.v1.evaluator.ctx.impl.waves.WavesContext
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.{CryptoContext, PureContext}
 import com.wavesplatform.lang.v1.parser.Parser
 import com.wavesplatform.lang.v1.{FunctionHeader, compiler}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.lang.{Global, utils}
 import com.wavesplatform.state._
 import com.wavesplatform.state.diffs.smart.smartEnabledFS
@@ -331,7 +332,8 @@ class ContextFunctionsTest extends PropSpec with PropertyChecks with Matchers wi
               | reissuable      &&
               | sponsored
               |
-            """.stripMargin
+              """.stripMargin,
+              ScriptEstimatorV2.apply
             )
             .explicitGet()
             ._1
@@ -368,7 +370,8 @@ class ContextFunctionsTest extends PropSpec with PropertyChecks with Matchers wi
                  | lastBlockBaseTarget && lastBlockGenerationSignature && lastBlockGenerator && lastBlockGeneratorPublicKey
                  |
                  |
-              """.stripMargin
+              """.stripMargin,
+              ScriptEstimatorV2.apply
             )
             .explicitGet()
             ._1
@@ -411,7 +414,8 @@ class ContextFunctionsTest extends PropSpec with PropertyChecks with Matchers wi
                  |
                  | nonExistedBlockNeg && nonExistedBlockZero && nonExistedBlockNextPlus && checkHeight && checkBaseTarget && checkGenSignature && checkGenerator && checkGeneratorPublicKey
                  |
-              """.stripMargin
+              """.stripMargin,
+              ScriptEstimatorV2.apply
             )
             .explicitGet()
             ._1
@@ -466,7 +470,7 @@ class ContextFunctionsTest extends PropSpec with PropertyChecks with Matchers wi
                 ))
           }
 
-          val compiledScript = ContractScript(V3, compiler.ContractCompiler(ctx.compilerContext, expr).explicitGet()).explicitGet()
+          val compiledScript = ContractScript(V3, compiler.ContractCompiler(ctx.compilerContext, expr).explicitGet(), ScriptEstimatorV2.apply).explicitGet()
           val setScriptTx    = SetScriptTransaction.selfSigned(masterAcc, Some(compiledScript), 1000000L, transferTx.timestamp + 5).explicitGet()
           val fc             = Terms.FUNCTION_CALL(FunctionHeader.User("compareBlocks"), List.empty)
 
@@ -543,7 +547,8 @@ class ContextFunctionsTest extends PropSpec with PropertyChecks with Matchers wi
                  | checkFeeAssetId     &&
                  | checkAnotherTxType
                  |
-              """.stripMargin
+              """.stripMargin,
+              ScriptEstimatorV2.apply
             )
             .explicitGet()
             ._1
@@ -580,7 +585,8 @@ class ContextFunctionsTest extends PropSpec with PropertyChecks with Matchers wi
                  |
                  | this.bytes == base58'${masterAcc.address}'
                  |
-              """.stripMargin
+              """.stripMargin,
+              ScriptEstimatorV2.apply
             )
             .explicitGet()
             ._1
@@ -613,7 +619,8 @@ class ContextFunctionsTest extends PropSpec with PropertyChecks with Matchers wi
                  |
                  | checkAddressToStrRight && checkAddressToStr
                  |
-              """.stripMargin
+              """.stripMargin,
+              ScriptEstimatorV2.apply
             )
             .explicitGet()
             ._1

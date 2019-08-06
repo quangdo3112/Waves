@@ -4,6 +4,7 @@ import com.wavesplatform.TransactionGen
 import com.wavesplatform.account.PublicKey
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction.assets.{ReissueTransaction, ReissueTransactionV1}
 import org.scalatest._
@@ -14,14 +15,14 @@ class ReissueTransactionV1Specification extends PropSpec with PropertyChecks wit
 
   property("Reissue serialization roundtrip") {
     forAll(reissueGen) { issue: ReissueTransaction =>
-      val recovered = issue.builder.parseBytes(issue.bytes()).get
+      val recovered = issue.builder.parseBytes(issue.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual issue.bytes()
     }
   }
 
   property("Reissue serialization from TypedTransaction") {
     forAll(reissueGen) { issue: ReissueTransaction =>
-      val recovered = TransactionParsers.parseBytes(issue.bytes()).get
+      val recovered = TransactionParsers.parseBytes(issue.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual issue.bytes()
     }
   }

@@ -20,6 +20,7 @@ import com.wavesplatform.lang.script.Script
 import com.wavesplatform.lang.script.v1.ExprScript
 import com.wavesplatform.lang.v1.compiler.Terms.EXPR
 import com.wavesplatform.lang.v1.compiler.{CompilerContext, ExpressionCompiler}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.mining._
 import com.wavesplatform.settings._
 import com.wavesplatform.state._
@@ -413,7 +414,7 @@ class UtxPoolSpecification
                 GenesisTransaction.create(randomAccount, ENOUGH_AMT, ntpNow).explicitGet(),
                 SetScriptTransaction
                   .signed(richAccount,
-                          Some(Script.fromBase64String("AQkAAGcAAAACAHho/EXujJiPAJUhuPXZYac+rt2jYg==").explicitGet()),
+                          Some(Script.fromBase64String("AQkAAGcAAAACAHho/EXujJiPAJUhuPXZYac+rt2jYg==", ScriptEstimatorV2.apply).explicitGet()),
                           QuickTX.FeeAmount * 4,
                           ntpNow,
                           richAccount)

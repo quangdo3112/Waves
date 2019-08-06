@@ -2,12 +2,17 @@ package com.wavesplatform.network.message
 
 import com.google.common.primitives.{Bytes, Ints}
 import com.wavesplatform.crypto
+import com.wavesplatform.lang.ScriptEstimator
 import monix.eval.Coeval
 import com.wavesplatform.serialization.BytesSerializable
 
 import scala.util.{Success, Try}
 
-case class Message[Content <: AnyRef](spec: MessageSpec[Content], input: Either[Array[Byte], Content]) extends BytesSerializable {
+case class Message[Content <: AnyRef](
+  spec:      MessageSpec[Content],
+  input:     Either[Array[Byte], Content],
+  estimator: ScriptEstimator
+) extends BytesSerializable {
 
   import Message.{ChecksumLength, MAGIC}
 
@@ -17,7 +22,7 @@ case class Message[Content <: AnyRef](spec: MessageSpec[Content], input: Either[
   }
 
   lazy val data: Try[Content] = input match {
-    case Left(db) => spec.deserializeData(db)
+    case Left(db) => spec.deserializeData(db, estimator)
     case Right(d) => Success(d)
   }
 

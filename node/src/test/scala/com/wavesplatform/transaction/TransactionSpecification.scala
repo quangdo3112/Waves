@@ -3,6 +3,7 @@ package com.wavesplatform.transaction
 import com.wavesplatform.TransactionGen
 import com.wavesplatform.account.KeyPair
 import com.wavesplatform.common.utils.EitherExt2
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.transfer._
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
@@ -31,7 +32,7 @@ class TransactionSpecification extends PropSpec with PropertyChecks with Matcher
         val sender    = KeyPair(senderSeed)
         val recipient = KeyPair(recipientSeed)
         val tx        = createWavesTransfer(sender, recipient, amount, fee, time).explicitGet()
-        val txAfter   = TransferTransactionV1.parseBytes(tx.bytes()).get
+        val txAfter   = TransferTransactionV1.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
 
         txAfter.getClass.shouldBe(tx.getClass)
 
@@ -50,7 +51,7 @@ class TransactionSpecification extends PropSpec with PropertyChecks with Matcher
         val sender    = KeyPair(senderSeed)
         val recipient = KeyPair(recipientSeed)
         val tx        = createWavesTransfer(sender, recipient, amount, fee, time).explicitGet()
-        val txAfter   = TransactionParsers.parseBytes(tx.bytes()).get.asInstanceOf[TransferTransactionV1]
+        val txAfter   = TransactionParsers.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get.asInstanceOf[TransferTransactionV1]
 
         txAfter.getClass.shouldBe(tx.getClass)
 

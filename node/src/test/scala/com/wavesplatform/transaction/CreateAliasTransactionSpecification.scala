@@ -1,9 +1,10 @@
 package com.wavesplatform.transaction
 
 import com.wavesplatform.TransactionGen
-import com.wavesplatform.account.{KeyPair, PublicKey, Alias}
+import com.wavesplatform.account.{Alias, KeyPair, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import org.scalatest._
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
 import play.api.libs.json.Json
@@ -12,14 +13,14 @@ class CreateAliasTransactionSpecification extends PropSpec with PropertyChecks w
 
   property("CreateAliasTransaction serialization roundtrip") {
     forAll(createAliasGen) { tx: CreateAliasTransaction =>
-      val recovered = tx.builder.parseBytes(tx.bytes()).get
+      val recovered = tx.builder.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       recovered shouldEqual tx
     }
   }
 
   property("CreateAliasTransaction serialization from TypedTransaction") {
     forAll(createAliasGen) { tx: CreateAliasTransaction =>
-      val recovered = TransactionParsers.parseBytes(tx.bytes()).get
+      val recovered = TransactionParsers.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       recovered shouldEqual tx
     }
   }

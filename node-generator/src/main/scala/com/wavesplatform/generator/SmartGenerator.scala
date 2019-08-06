@@ -8,6 +8,7 @@ import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.generator.utils.Gen
 import com.wavesplatform.it.util._
+import com.wavesplatform.lang.ScriptEstimator
 import com.wavesplatform.lang.script.Script
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction.assets.exchange.{AssetPair, ExchangeTransactionV2, OrderV2}
@@ -17,7 +18,11 @@ import com.wavesplatform.transaction.{Asset, Transaction}
 
 import scala.concurrent.duration._
 
-class SmartGenerator(settings: SmartGenerator.Settings, val accounts: Seq[KeyPair]) extends TransactionGenerator {
+class SmartGenerator(
+  settings: SmartGenerator.Settings,
+  val accounts: Seq[KeyPair],
+  estimator: ScriptEstimator
+) extends TransactionGenerator {
   private def r                                   = ThreadLocalRandom.current
   private def randomFrom[T](c: Seq[T]): Option[T] = if (c.nonEmpty) Some(c(r.nextInt(c.size))) else None
 
@@ -30,7 +35,7 @@ class SmartGenerator(settings: SmartGenerator.Settings, val accounts: Seq[KeyPai
 
     val fee = 0.005.waves
 
-    val script: Script = Gen.script(settings.complexity)
+    val script: Script = Gen.script(settings.complexity, estimator)
 
     val setScripts = Range(0, settings.scripts) flatMap (_ =>
       accounts.map { i =>

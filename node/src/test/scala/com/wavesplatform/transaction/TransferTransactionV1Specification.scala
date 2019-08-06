@@ -1,9 +1,10 @@
 package com.wavesplatform.transaction
 
 import com.wavesplatform.TransactionGen
-import com.wavesplatform.account.{PublicKey, Address}
+import com.wavesplatform.account.{Address, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.state.diffs._
 import com.wavesplatform.transaction.Asset.Waves
 import com.wavesplatform.transaction.transfer._
@@ -15,7 +16,7 @@ class TransferTransactionV1Specification extends PropSpec with PropertyChecks wi
 
   property("Transfer serialization roundtrip") {
     forAll(transferV1Gen) { transfer: TransferTransactionV1 =>
-      val recovered = TransferTransactionV1.parseBytes(transfer.bytes()).get
+      val recovered = TransferTransactionV1.parseBytes(transfer.bytes(), ScriptEstimatorV2.apply).get
 
       recovered.sender.address shouldEqual transfer.sender.address
       recovered.assetId shouldBe transfer.assetId
@@ -31,7 +32,7 @@ class TransferTransactionV1Specification extends PropSpec with PropertyChecks wi
 
   property("Transfer serialization from TypedTransaction") {
     forAll(transferV1Gen) { tx: TransferTransactionV1 =>
-      val recovered = TransactionParsers.parseBytes(tx.bytes()).get
+      val recovered = TransactionParsers.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual tx.bytes()
     }
   }

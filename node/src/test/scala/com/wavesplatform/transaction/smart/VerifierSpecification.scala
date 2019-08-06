@@ -11,6 +11,7 @@ import com.wavesplatform.transaction.Asset.IssuedAsset
 import com.wavesplatform.transaction.assets.exchange._
 import com.wavesplatform.transaction.smart.Verifier.ValidationResult
 import com.wavesplatform.lang.script.v1.ExprScript
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.smart.script.ScriptCompiler
 import com.wavesplatform.transaction.{Asset, Transaction}
 import com.wavesplatform.{NTPTime, TransactionGen}
@@ -36,7 +37,7 @@ class VerifierSpecification extends PropSpec with PropertyChecks with Matchers w
           |  case o: Order => height >= 0
           |  case _ => true
           |}""".stripMargin
-      val script = ScriptCompiler(scriptText, isAssetScript = false).explicitGet()._1
+      val script = ScriptCompiler(scriptText, isAssetScript = false, ScriptEstimatorV2.apply).explicitGet()._1
 
       (bc.accountScript _).when(tx.sellOrder.sender.toAddress).returns(None)
       (bc.accountScript _).when(tx.buyOrder.sender.toAddress).returns(Some(script))
@@ -50,7 +51,7 @@ class VerifierSpecification extends PropSpec with PropertyChecks with Matchers w
 
   property("ExchangeTransaction - matcherFeeAssetId's in custom exchange transaction should be verified") {
     forAll(exchangeTransactionV2WithArbitraryFeeAssetsInOrdersGen) { tx =>
-      val (invalidScript, _) = ScriptCompiler.compile("(5 / 0) == 2").explicitGet()
+      val (invalidScript, _) = ScriptCompiler.compile("(5 / 0) == 2", ScriptEstimatorV2.apply).explicitGet()
       val falseScript        = ExprScript(Terms.FALSE).explicitGet()
 
       setFeeAssetScriptsAndVerify(Some(invalidScript), None)(tx) should produce("ScriptExecutionError")        // buy order:  matcherFeeAsset has invalid script

@@ -6,6 +6,7 @@ import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
 import com.wavesplatform.features.BlockchainFeatures._
 import com.wavesplatform.lagonaki.mocks.TestBlock.{create => block}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.settings.{Constants, TestFunctionalitySettings}
 import com.wavesplatform.state.diffs._
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
@@ -25,14 +26,14 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
 
   property("SponsorFee serialization roundtrip") {
     forAll(sponsorFeeGen) { transaction: SponsorFeeTransaction =>
-      val recovered = SponsorFeeTransaction.parseBytes(transaction.bytes()).get
+      val recovered = SponsorFeeTransaction.parseBytes(transaction.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual transaction.bytes()
     }
   }
 
   property("SponsorFee serialization from TypedTransaction") {
     forAll(sponsorFeeGen) { transaction: SponsorFeeTransaction =>
-      val recovered = TransactionParsers.parseBytes(transaction.bytes()).get
+      val recovered = TransactionParsers.parseBytes(transaction.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual transaction.bytes()
     }
   }

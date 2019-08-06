@@ -6,6 +6,7 @@ import com.wavesplatform.account.PublicKey
 import com.wavesplatform.api.http.SignedDataRequest
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.state.DataEntry._
 import com.wavesplatform.state.{BinaryDataEntry, BooleanDataEntry, DataEntry, IntegerDataEntry, StringDataEntry}
 import org.scalacheck.Gen
@@ -17,7 +18,7 @@ import scorex.crypto.encode.Base64
 class DataTransactionSpecification extends PropSpec with PropertyChecks with Matchers with TransactionGen {
 
   private def checkSerialization(tx: DataTransaction): Assertion = {
-    val parsed = DataTransaction.parseBytes(tx.bytes()).get
+    val parsed = DataTransaction.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
 
     parsed.sender.address shouldEqual tx.sender.address
     parsed.timestamp shouldEqual tx.timestamp
@@ -38,7 +39,7 @@ class DataTransactionSpecification extends PropSpec with PropertyChecks with Mat
 
   property("serialization from TypedTransaction") {
     forAll(dataTransactionGen) { tx: DataTransaction =>
-      val recovered = DataTransaction.parseBytes(tx.bytes()).get
+      val recovered = DataTransaction.parseBytes(tx.bytes(), ScriptEstimatorV2.apply).get
       recovered.bytes() shouldEqual tx.bytes()
     }
   }
@@ -53,7 +54,7 @@ class DataTransactionSpecification extends PropSpec with PropertyChecks with Mat
           val key1Length = Shorts.fromByteArray(bytes.drop(37))
           val p          = 39 + key1Length
           bytes(p) = badTypeId.toByte
-          val parsed = DataTransaction.parseBytes(bytes)
+          val parsed = DataTransaction.parseBytes(bytes, ScriptEstimatorV2.apply)
           parsed.isFailure shouldBe true
           parsed.failed.get.getMessage shouldBe s"Unknown type $badTypeId"
         }

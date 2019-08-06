@@ -15,6 +15,7 @@ import com.wavesplatform.settings.TestFunctionalitySettings
 import com.wavesplatform.transaction.GenesisTransaction
 import com.wavesplatform.transaction.smart.SetScriptTransaction
 import com.wavesplatform.lang.script.v1.ExprScript
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.protobuf.dapp.DAppMeta
 import com.wavesplatform.{NoShrink, TransactionGen, WithDB}
 import org.scalacheck.Gen
@@ -58,7 +59,8 @@ class SetScriptTransactionDiffTest extends PropSpec with PropertyChecks with Mat
         List.empty,
         List(CallableFunction(CallableAnnotation("sender"), Terms.FUNC("foo", List("a"), FUNCTION_CALL(Native(203), List(REF("a"), REF("sender")))))),
         None
-      )
+      ),
+      ScriptEstimatorV2.apply
     )
   } yield (genesis, SetScriptTransaction.selfSigned(master, script.toOption, fee, ts).explicitGet())
 

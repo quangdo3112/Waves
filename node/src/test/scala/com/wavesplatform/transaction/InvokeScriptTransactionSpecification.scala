@@ -9,6 +9,7 @@ import com.wavesplatform.lang.v1.compiler.Terms
 import com.wavesplatform.lang.v1.compiler.Terms.{ARR, CONST_LONG, CaseObj}
 import com.wavesplatform.lang.v1.compiler.Types.CASETYPEREF
 import com.wavesplatform.lang.v1.{ContractLimits, FunctionHeader}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.transaction.TxValidationError.NonPositiveAmount
 import com.wavesplatform.transaction.smart.InvokeScriptTransaction.Payment
@@ -24,7 +25,7 @@ class InvokeScriptTransactionSpecification extends PropSpec with PropertyChecks 
   property("InvokeScriptTransaction serialization roundtrip") {
     forAll(invokeScriptGen) { transaction: InvokeScriptTransaction =>
       val bytes = transaction.bytes()
-      val deser = InvokeScriptTransaction.parseBytes(bytes).get
+      val deser = InvokeScriptTransaction.parseBytes(bytes, ScriptEstimatorV2.apply).get
       deser.sender shouldEqual transaction.sender
       deser.dAppAddressOrAlias shouldEqual transaction.dAppAddressOrAlias
       deser.funcCallOpt shouldEqual transaction.funcCallOpt
@@ -77,14 +78,14 @@ class InvokeScriptTransactionSpecification extends PropSpec with PropertyChecks 
         Seq(InvokeScriptTransaction.Payment(7, IssuedAsset(ByteStr.decodeBase58(publicKey).get))),
         100000,
         Waves,
-        1526910778245L,
+        1526910778245L
       )
       .right
       .get
 
     (tx.json() - "proofs") shouldEqual (js.asInstanceOf[JsObject] - "proofs")
 
-    TransactionFactory.fromSignedRequest(js) shouldBe Right(tx)
+    TransactionFactory.fromSignedRequest(js, ScriptEstimatorV2.apply) shouldBe Right(tx)
     AddressScheme.current = DefaultAddressScheme
   }
 
@@ -116,14 +117,14 @@ class InvokeScriptTransactionSpecification extends PropSpec with PropertyChecks 
         Seq(InvokeScriptTransaction.Payment(7, IssuedAsset(ByteStr.decodeBase58(publicKey).get))),
         100000,
         Waves,
-        1526910778245L,
+        1526910778245L
       )
       .right
       .get
 
     (tx.json() - "proofs") shouldEqual (js.asInstanceOf[JsObject] - "proofs")
 
-    TransactionFactory.fromSignedRequest(js) shouldBe Right(tx)
+    TransactionFactory.fromSignedRequest(js, ScriptEstimatorV2.apply) shouldBe Right(tx)
     AddressScheme.current = DefaultAddressScheme
   }
 

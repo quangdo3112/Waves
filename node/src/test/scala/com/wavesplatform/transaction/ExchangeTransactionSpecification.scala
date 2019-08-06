@@ -4,6 +4,7 @@ import com.wavesplatform.account.{KeyPair, PublicKey}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
 import com.wavesplatform.lang.ValidationError
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.transaction.TxValidationError.OrderValidationError
 import com.wavesplatform.transaction.assets.exchange.AssetPair.extractAssetId
@@ -43,7 +44,7 @@ class ExchangeTransactionSpecification extends PropSpec with PropertyChecks with
 
   property("ExchangeTransaction transaction serialization roundtrip") {
     forAll(exchangeTransactionGen) { om =>
-      val recovered = ExchangeTransaction.parse(om.bytes()).get
+      val recovered = ExchangeTransaction.parse(om.bytes(), ScriptEstimatorV2.apply).get
       om.id() shouldBe recovered.id()
       om.buyOrder.idStr() shouldBe recovered.buyOrder.idStr()
       recovered.bytes() shouldEqual om.bytes()

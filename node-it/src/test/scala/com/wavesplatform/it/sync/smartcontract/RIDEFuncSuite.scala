@@ -8,6 +8,7 @@ import com.wavesplatform.it.api.SyncHttpApi._
 import com.wavesplatform.it.sync._
 import com.wavesplatform.it.transactions.BaseTransactionSuite
 import com.wavesplatform.it.util._
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
 import com.wavesplatform.transaction.smart.SetScriptTransaction
 import com.wavesplatform.transaction.smart.script.ScriptCompiler
@@ -41,7 +42,7 @@ class RIDEFuncSuite extends BaseTransactionSuite with CancelAfterFailure {
          |}
       """.stripMargin
 
-    val compiled = ScriptCompiler(scriptSrc, isAssetScript = false).explicitGet()._1
+    val compiled = ScriptCompiler(scriptSrc, isAssetScript = false, ScriptEstimatorV2.apply).explicitGet()._1
 
     val tx =
       sender.signedBroadcast(
@@ -87,7 +88,7 @@ class RIDEFuncSuite extends BaseTransactionSuite with CancelAfterFailure {
          |}
       """.stripMargin
 
-    val updated = ScriptCompiler(udpatedScript, isAssetScript = false).explicitGet()._1
+    val updated = ScriptCompiler(udpatedScript, isAssetScript = false, ScriptEstimatorV2.apply).explicitGet()._1
 
     val updTx =
       sender.signedBroadcast(
@@ -144,7 +145,7 @@ class RIDEFuncSuite extends BaseTransactionSuite with CancelAfterFailure {
          |  }
       """.stripMargin
 
-    val compiledScript = ScriptCompiler.compile(scriptText).explicitGet()._1
+    val compiledScript = ScriptCompiler.compile(scriptText, ScriptEstimatorV2.apply).explicitGet()._1
 
     val newAddress   = sender.createAddress()
     val pkNewAddress = pkByAddress(newAddress)
@@ -189,7 +190,7 @@ class RIDEFuncSuite extends BaseTransactionSuite with CancelAfterFailure {
          |    let checkHeightLast = lastBlock.height == height
          |    checkTs && checkHeight && checkHeightLast
          |  }
-      """.stripMargin).explicitGet()._1
+      """.stripMargin, ScriptEstimatorV2.apply).explicitGet()._1
 
     val newAddress = sender.createAddress()
     sender.transfer(acc0.address, newAddress, 10.waves, minFee, waitForTx = true)

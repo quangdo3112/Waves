@@ -3,6 +3,7 @@ package com.wavesplatform.network
 import com.wavesplatform.TransactionGen
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.crypto._
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import org.scalacheck.Gen
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FreeSpec, Matchers}
@@ -21,7 +22,7 @@ class MicroBlockInvSpecSpec extends FreeSpec with Matchers with PropertyChecks w
 
     "deserializeData(serializedData(data)) == data" in forAll(microBlockInvGen) { inv =>
       inv.signaturesValid() shouldBe 'right
-      val restoredInv = deserializeData(serializeData(inv)).get
+      val restoredInv = deserializeData(serializeData(inv), ScriptEstimatorV2.apply).get
       restoredInv.signaturesValid() shouldBe 'right
 
       restoredInv shouldBe inv

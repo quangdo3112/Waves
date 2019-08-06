@@ -10,6 +10,7 @@ import com.wavesplatform.lang.script.{ContractScript, Script}
 import com.wavesplatform.lang.v1.compiler.Terms._
 import com.wavesplatform.lang.v1.testing.{ScriptGen, TypedScriptGen}
 import com.wavesplatform.lang.v1.{ContractLimits, FunctionHeader}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.settings.Constants
 import com.wavesplatform.state._
 import com.wavesplatform.state.diffs.ENOUGH_AMT
@@ -116,7 +117,7 @@ trait TransactionGenBase extends ScriptGen with TypedScriptGen with NTPTime { _:
   } yield Proofs.create(proofs.map(ByteStr(_))).explicitGet()
 
   val scriptGen: Gen[Script]         = exprGen.map(e => ExprScript(e).explicitGet())
-  val contractScriptGen: Gen[Script] = contractGen.map(e => ContractScript(V3, e).explicitGet())
+  val contractScriptGen: Gen[Script] = contractGen.map(e => ContractScript(V3, e, ScriptEstimatorV2.apply).explicitGet())
   val contractOrExpr                 = Gen.oneOf(scriptGen, contractScriptGen)
   val setAssetScriptTransactionGen: Gen[(Seq[Transaction], SetAssetScriptTransaction)] = for {
     version                                                                  <- Gen.oneOf(SetScriptTransaction.supportedVersions.toSeq)

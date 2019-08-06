@@ -4,6 +4,7 @@ import com.wavesplatform.account.KeyPair
 import com.wavesplatform.block.{Block, MicroBlock}
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.EitherExt2
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.mining.Miner
 import com.wavesplatform.state.diffs.produce
 import com.wavesplatform.transaction.Asset.{IssuedAsset, Waves}
@@ -33,7 +34,7 @@ class MicroBlockSpecification extends FunSuite with Matchers with MockFactory wi
     val transactions = Seq(tr, tr2)
 
     val microBlock  = MicroBlock.buildAndSign(sender, transactions, prevResBlockSig, totalResBlockSig).explicitGet()
-    val parsedBlock = MicroBlock.parseBytes(microBlock.bytes()).get
+    val parsedBlock = MicroBlock.parseBytes(microBlock.bytes(), ScriptEstimatorV2.apply).get
 
     assert(microBlock.signaturesValid().isRight)
     assert(parsedBlock.signaturesValid().isRight)

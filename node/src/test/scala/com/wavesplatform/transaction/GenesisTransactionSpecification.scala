@@ -2,6 +2,7 @@ package com.wavesplatform.transaction
 
 import com.wavesplatform.account.{KeyPair, PublicKey}
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest._
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
@@ -24,7 +25,7 @@ class GenesisTransactionSpecification extends PropSpec with PropertyChecks with 
   property("GenesisTransaction parse from Bytes should work fine") {
     val bytes = Base58.tryDecodeWithLimit("5GoidXWjBfzuS9tZm4Fp6GAXUYFunVMsoWAew3eBnDbmaDi7WiP9yVpBD2").get
 
-    val actualTransaction = GenesisTransaction.parseBytes(bytes).get
+    val actualTransaction = GenesisTransaction.parseBytes(bytes, ScriptEstimatorV2.apply).get
 
     val balance             = 12345L
     val timestamp           = 1234567890L
@@ -39,7 +40,7 @@ class GenesisTransactionSpecification extends PropSpec with PropertyChecks with 
         val recipient = KeyPair(recipientSeed)
         val source    = GenesisTransaction.create(recipient, amount, time).explicitGet()
         val bytes     = source.bytes()
-        val dest      = GenesisTransaction.parseBytes(bytes).get
+        val dest      = GenesisTransaction.parseBytes(bytes, ScriptEstimatorV2.apply).get
 
         source should equal(dest)
     }

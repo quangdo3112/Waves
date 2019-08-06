@@ -6,9 +6,8 @@ import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
 import com.wavesplatform.lang.directives.values._
 import com.wavesplatform.lang.directives.{DirectiveDictionary, DirectiveSet}
-import com.wavesplatform.lang.{Global, utils}
+import com.wavesplatform.lang.{Global, ScriptEstimator, utils}
 import com.wavesplatform.lang.v1.compiler.{ExpressionCompiler, _}
-import com.wavesplatform.lang.v1.estimator.ScriptEstimator
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.waves.WavesContext
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.{CryptoContext, PureContext}
 import com.wavesplatform.lang.v1.parser.Expressions.EXPR
@@ -27,11 +26,10 @@ import org.scalatest.{Matchers, PropSpec}
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks => PropertyChecks}
 import scorex.crypto.encode.Base64
 
-class FunctionComplexityTest extends PropSpec with PropertyChecks with Matchers with TypedScriptGen {
+abstract class FunctionComplexityTest(estimator: ScriptEstimator) extends PropSpec with PropertyChecks with Matchers with TypedScriptGen {
 
-  private def estimate(expr: Terms.EXPR, ctx: CTX, funcCosts: Map[FunctionHeader, Coeval[Long]]): Either[String, Long] = {
-    ScriptEstimator(ctx.evaluationContext.letDefs.keySet, funcCosts, expr)
-  }
+  private def estimate(expr: Terms.EXPR, ctx: CTX, funcCosts: Map[FunctionHeader, Coeval[Long]]): Either[String, Long] =
+    estimator(ctx.evaluationContext.letDefs.keySet, funcCosts, expr)
 
   private val ctxV1 = {
     utils.functionCosts(V1)

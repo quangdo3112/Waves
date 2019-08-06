@@ -14,6 +14,7 @@ import com.wavesplatform.lang.script.v1.ExprScript
 import com.wavesplatform.lang.script.{ContractScript, Script}
 import com.wavesplatform.lang.v1.compiler.Terms._
 import com.wavesplatform.lang.v1.evaluator.ctx.impl.PureContext
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.smart.script.ScriptCompiler
 import com.wavesplatform.protobuf.dapp.DAppMeta
 import com.wavesplatform.protobuf.dapp.DAppMeta.CallableFuncSignature
@@ -94,7 +95,7 @@ class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with
         "true"
     }
 
-    val dappVerBytesStr = ContractScript(V3, dappVer).explicitGet().bytes().base64
+    val dappVerBytesStr = ContractScript(V3, dappVer, ScriptEstimatorV2.apply).explicitGet().bytes().base64
 
     testdAppDirective(dappVerBytesStr)
     testdAppDirective("\t\t \n\n" + dappVerBytesStr + " \t \n \t")
@@ -143,7 +144,7 @@ class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with
         )
       )
     )
-    val dappBase64 = ContractScript(V3, dApp).explicitGet().bytes().base64
+    val dappBase64 = ContractScript(V3, dApp, ScriptEstimatorV2.apply).explicitGet().bytes().base64
     Post(routePath("/script/meta"), dappBase64) ~> route ~> check {
       val json = responseAs[JsValue]
       json.toString shouldBe
@@ -175,7 +176,7 @@ class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with
       val json           = responseAs[JsValue]
       val expectedScript = ExprScript(V2, script).explicitGet()
 
-      Script.fromBase64String((json \ "script").as[String]) shouldBe Right(expectedScript)
+      Script.fromBase64String((json \ "script").as[String], ScriptEstimatorV2.apply) shouldBe Right(expectedScript)
       (json \ "complexity").as[Long] shouldBe 3
       (json \ "extraFee").as[Long] shouldBe FeeValidation.ScriptExtraFee
     }
@@ -186,7 +187,7 @@ class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with
       val json           = responseAs[JsValue]
       val expectedScript = ExprScript(V2, script).explicitGet()
 
-      Script.fromBase64String((json \ "script").as[String]) shouldBe Right(expectedScript)
+      Script.fromBase64String((json \ "script").as[String], ScriptEstimatorV2.apply) shouldBe Right(expectedScript)
       (json \ "complexity").as[Long] shouldBe 3
       (json \ "extraFee").as[Long] shouldBe FeeValidation.ScriptExtraFee
     }
@@ -214,10 +215,10 @@ class UtilsRouteSpec extends RouteSpec("/utils") with RestAPISettingsHelper with
           | let a = 5
           | inc(a) == a + 1
         """.stripMargin
-      val compiled = ScriptCompiler.compile(expectedScript)
+      val compiled = ScriptCompiler.compile(expectedScript, ScriptEstimatorV2.apply)
 
       val json = responseAs[JsValue]
-      val base64Result = Script.fromBase64String((json \ "script").as[String])
+      val base64Result = Script.fromBase64String((json \ "script").as[String], ScriptEstimatorV2.apply)
       base64Result shouldBe compiled.map(_._1)
       (json \ "complexity").as[Long] shouldBe compiled.map(_._2).explicitGet()
       (json \ "extraFee").as[Long] shouldBe FeeValidation.ScriptExtraFee

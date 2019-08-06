@@ -4,6 +4,7 @@ import com.wavesplatform.api.http.assets._
 import com.wavesplatform.common.state.ByteStr
 import com.wavesplatform.common.utils.{Base58, EitherExt2}
 import com.wavesplatform.lang.script.Script
+import com.wavesplatform.lang.v2.estimator.ScriptEstimatorV2
 import com.wavesplatform.transaction.Proofs
 import org.scalatest.{FunSuite, Matchers}
 import play.api.libs.json.Json
@@ -258,9 +259,9 @@ class SignedRequestsTest extends FunSuite with Matchers {
     req.fee shouldBe 100000L
     req.timestamp shouldBe 1520945679531L
 
-    val tx = req.toTx.explicitGet()
+    val tx = req.toTx(ScriptEstimatorV2.apply).explicitGet()
     tx.asset.id.base58 shouldBe "Ha35nwsnmYxHRF8UmKG3S523BycBLZFU4FZnjXryKd4L"
-    tx.script shouldBe Some(Script.fromBase64String("base64:AQkAAGcAAAACAHho/EXujJiPAJUhuPXZYac+rt2jYg==").explicitGet())
+    tx.script shouldBe Some(Script.fromBase64String("base64:AQkAAGcAAAACAHho/EXujJiPAJUhuPXZYac+rt2jYg==", ScriptEstimatorV2.apply).explicitGet())
     tx.fee shouldBe 100000L
     tx.timestamp shouldBe 1520945679531L
   }
